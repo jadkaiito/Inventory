@@ -48,9 +48,17 @@ const CameraScanner = (() => {
           throw new Error("No video devices found.");
         }
 
+        // Try to find the back camera (environment-facing camera)
+        const backCamera = videoDevices.find((device) => device.label.toLowerCase().includes("back") || device.facing === "environment");
+
+        if (!backCamera) {
+          throw new Error("No back camera found.");
+        }
+
+        // Request the back camera (environment-facing camera)
         return navigator.mediaDevices.getUserMedia({
           video: {
-            facingMode: videoDevices.length > 1 ? "environment" : "user", // Fallback to "user" for single camera devices
+            deviceId: backCamera.deviceId, // Use the back camera
           },
         });
       })
@@ -91,7 +99,7 @@ const CameraScanner = (() => {
           constraints: {
             width: 1920, // Increased resolution for better accuracy
             height: 1080,
-            facingMode: "environment",
+            facingMode: "environment", // Ensures back camera is used
           },
         },
         decoder: {
