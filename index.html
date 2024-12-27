@@ -1,282 +1,253 @@
-<!-- Camera Permission Modal -->
-<div id="cameraPermissionModal" class="permission-modal">
-  <div class="modal-content">
-    <h3>Camera Access Required</h3>
-    <p>This website requires access to your camera to scan barcodes. Please grant permission for the camera to function.</p>
-    <button id="allowCamera">Allow Camera</button>
-    <button id="denyCamera">Deny</button>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inventory System</title>
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: #1e1e1e;
+      color: #fff;
+    }
+    h1 {
+      text-align: center;
+      font-size: 2.5em;
+      margin-bottom: 20px;
+    }
+    #addItemForm {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    #addItemForm input, #addItemForm button {
+      padding: 10px;
+      font-size: 16px;
+      color: #333;
+    }
+    #addItemForm button {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+    #addItemForm button:hover {
+      background-color: #0056b3;
+    }
+    #inventoryTable {
+      width: 100%;
+      margin-top: 20px;
+      border-collapse: collapse;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+    #inventoryTable th, #inventoryTable td {
+      padding: 12px;
+      text-align: center;
+      border: 1px solid #ddd;
+      background-color: #333;
+      color: #fff;
+    }
+    #inventoryTable th {
+      background-color: #007bff;
+    }
+    #cameraModal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: black;
+      justify-content: center;
+      align-items: center;
+    }
+    #cameraModal.active {
+      display: flex;
+    }
+    #cameraContent {
+      background-color: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+      text-align: center;
+    }
+    #video {
+      width: 320px;
+      height: 240px;
+      border: 5px solid #007bff;
+      border-radius: 10px;
+      margin-bottom: 10px;
+    }
+    #scannerTitle {
+      font-size: 1.5em;
+      margin-bottom: 10px;
+      color: #fff;
+    }
+    #closeModal {
+      background-color: #dc3545;
+      color: white;
+      border: none;
+      margin-top: 15px;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+    #closeModal:hover {
+      background-color: #c82333;
+    }
+    #exportImportButtons {
+      display: flex;
+      justify-content: center;
+      gap: 15px;
+      margin-top: 20px;
+    }
+    #exportBtn, #importBtn {
+      background-color: #28a745;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+    #exportBtn:hover, #importBtn:hover {
+      background-color: #218838;
+    }
+  </style>
+</head>
+<body>
+  <h1>Inventory System</h1>
+  
+  <!-- Form to Add Items -->
+  <form id="addItemForm">
+    <input type="text" id="barcode" placeholder="Codebar" required readonly>
+    <input type="text" id="name" placeholder="Item Name" required>
+    <input type="number" id="quantity" placeholder="Quantity" required>
+    <input type="number" step="0.01" id="price" placeholder="Price" required>
+    <button type="button" id="startScanner">Scan Codebar</button>
+    <button type="submit">Add Item</button>
+  </form>
+
+  <!-- Inventory Display -->
+  <h2>Inventory</h2>
+  <table id="inventoryTable" border="1">
+    <thead>
+      <tr>
+        <th>Reference</th>
+        <th>Codebar</th>
+        <th>Name</th>
+        <th>Quantity</th>
+        <th>Price</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <!-- Export/Import Buttons -->
+  <div id="exportImportButtons">
+    <button id="exportBtn">Export Inventory</button>
+    <input type="file" id="importBtn" accept=".json" style="display: none;" />
+    <button onclick="document.getElementById('importBtn').click()">Import Inventory</button>
   </div>
-</div>
 
-<!-- Main camera modal (to show video stream) -->
-<div id="cameraModal" class="camera-modal">
-  <video id="video" width="640" height="480" autoplay></video>
-  <button id="closeModal">Close</button>
-</div>
+  <!-- Camera Modal for Barcode Scanning -->
+  <div id="cameraModal">
+    <div id="cameraContent">
+      <div id="scannerTitle">Barcode Scanner</div>
+      <video id="video" autoplay></video>
+      <button id="closeModal">Close Scanner</button>
+    </div>
+  </div>
 
-<!-- Start scan button -->
-<button id="startScanner">Start Scanner</button>
+  <!-- Quagga JS and Barcode Sound -->
+  <script src="js/quagga.js"></script>
+  <script src="js/camera.js"></script>
 
-<!-- Barcode input -->
-<input type="text" id="barcode" readonly />
+  <script>
+    let inventory = JSON.parse(localStorage.getItem("local/inventory")) || [];
 
-<script>
-// camera.js
-
-// Patch to ensure all canvas contexts use willReadFrequently
-(function patchCanvasContext() {
-  const originalGetContext = HTMLCanvasElement.prototype.getContext;
-  HTMLCanvasElement.prototype.getContext = function (type, options) {
-    if (type === "2d") {
-      options = options || {};
-      options.willReadFrequently = true;
-    }
-    return originalGetContext.call(this, type, options);
-  };
-  console.log("Canvas context patched to include willReadFrequently.");
-})();
-
-const CameraScanner = (() => {
-  let scannerActive = false;
-  let stream = null; // Keep track of the camera stream
-  const modal = document.getElementById("cameraModal");
-  const permissionModal = document.getElementById("cameraPermissionModal");
-  const videoElement = document.getElementById("video");
-  const closeModalButton = document.getElementById("closeModal");
-  const scanSound = new Audio("scan_sound.mp3"); // Replace with your sound file path
-
-  /**
-   * Stop the camera stream and close all cameras.
-   */
-  const stopStream = () => {
-    if (stream) {
-      stream.getTracks().forEach((track) => track.stop());
-      stream = null;
-      console.log("Camera stream stopped");
-    }
-  };
-
-  /**
-   * Show the camera permission modal to the user.
-   */
-  const showPermissionModal = () => {
-    permissionModal.classList.add("active");
-  };
-
-  /**
-   * Hide the camera permission modal.
-   */
-  const hidePermissionModal = () => {
-    permissionModal.classList.remove("active");
-  };
-
-  /**
-   * Show the camera modal and request camera access.
-   */
-  const showModal = () => {
-    hidePermissionModal(); // Close the permission modal once the user accepts
-    modal.classList.add("active");
-
-    // Check for available devices and request camera access
-    navigator.mediaDevices
-      .enumerateDevices()
-      .then((devices) => {
-        const videoDevices = devices.filter((device) => device.kind === "videoinput");
-
-        if (videoDevices.length === 0) {
-          throw new Error("No video devices found.");
-        }
-
-        console.log("Available video devices: ", videoDevices);
-
-        // Select the first available video device (front or back)
-        const selectedCamera = videoDevices[0];
-        console.log("Selected camera: ", selectedCamera);
-
-        // Request the selected camera (front or back)
-        return navigator.mediaDevices.getUserMedia({
-          video: {
-            deviceId: selectedCamera.deviceId, // Use the first available camera
-          },
-        });
-      })
-      .then((cameraStream) => {
-        stream = cameraStream;
-        videoElement.srcObject = stream;
-        videoElement.play();
-        initScanner();
-      })
-      .catch((err) => {
-        console.error("Error accessing camera:", err);
-        alert("Camera access error: " + err.message);
-        modal.classList.remove("active");
+    // Function to render inventory table
+    function renderInventory() {
+      const tableBody = document.querySelector('#inventoryTable tbody');
+      tableBody.innerHTML = '';
+      inventory.forEach((item, index) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${index + 1}</td>
+          <td>${item.barcode}</td>
+          <td>${item.name}</td>
+          <td>${item.quantity}</td>
+          <td>${item.price}</td>
+          <td><button onclick="removeItem(${index})">Remove</button> <button onclick="editItem(${index})">Edit</button></td>
+        `;
+        tableBody.appendChild(row);
       });
-  };
+    }
 
-  /**
-   * Hide the camera modal and stop the scanner.
-   */
-  const hideModal = () => {
-    modal.classList.remove("active");
-    stopStream();
-    stopScanner();
-  };
+    // Function to remove item from inventory
+    function removeItem(index) {
+      inventory.splice(index, 1);
+      localStorage.setItem("local/inventory", JSON.stringify(inventory));
+      renderInventory();
+    }
 
-  /**
-   * Initialize QuaggaJS for barcode scanning.
-   */
-  const initScanner = () => {
-    if (scannerActive) return;
+    // Function to edit item
+    function editItem(index) {
+      const item = inventory[index];
+      document.querySelector("#barcode").value = item.barcode;
+      document.querySelector("#name").value = item.name;
+      document.querySelector("#quantity").value = item.quantity;
+      document.querySelector("#price").value = item.price;
+      removeItem(index);
+    }
 
-    Quagga.init(
-      {
-        inputStream: {
-          name: "Live",
-          type: "LiveStream",
-          target: videoElement,
-          constraints: {
-            width: 1920, // Increased resolution for better accuracy
-            height: 1080,
-            facingMode: "environment", // Ensures back camera is used if available
-          },
-        },
-        decoder: {
-          readers: [
-            "code_128_reader",
-            "ean_reader",
-            "ean_8_reader",
-            "code_39_reader",
-            "upc_reader",
-          ],
-          multiple: false, // Only focus on a single barcode
-        },
-        locator: {
-          halfSample: false,
-          patchSize: "large", // Larger patches for higher accuracy
-          debug: { showCanvas: false },
-        },
-        locate: true,
-        debug: false, // Disable debug mode to reduce overhead
-      },
-      (err) => {
-        if (err) {
-          console.error("Error initializing Quagga:", err);
-          return;
-        }
-        console.log("Scanner initialized successfully");
-        Quagga.start();
-        scannerActive = true;
-      }
-    );
+    // Add item to inventory
+    document.querySelector('#addItemForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const barcode = document.querySelector('#barcode').value;
+      const name = document.querySelector('#name').value;
+      const quantity = document.querySelector('#quantity').value;
+      const price = document.querySelector('#price').value;
+      inventory.push({ barcode, name, quantity, price });
+      localStorage.setItem("local/inventory", JSON.stringify(inventory));
+      renderInventory();
+      document.querySelector('#addItemForm').reset();
+    });
 
-    Quagga.onDetected((result) => {
-      const barcode = result.codeResult.code;
-      if (barcode) {
-        scanSound.play();
-        document.getElementById("barcode").value = barcode;
-        alert(`Barcode Scanned: ${barcode}`);
-        hideModal(); // Automatically close after scan
+    // Export inventory to JSON file
+    document.querySelector('#exportBtn').addEventListener('click', () => {
+      const blob = new Blob([JSON.stringify(inventory)], { type: 'application/json' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'inventory.json';
+      link.click();
+    });
+
+    // Import inventory from JSON file
+    document.querySelector('#importBtn').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(event) {
+          const data = JSON.parse(event.target.result);
+          inventory = data;
+          localStorage.setItem("local/inventory", JSON.stringify(inventory));
+          renderInventory();
+        };
+        reader.readAsText(file);
       }
     });
-  };
 
-  /**
-   * Stop the Quagga scanner.
-   */
-  const stopScanner = () => {
-    if (scannerActive) {
-      Quagga.stop();
-      scannerActive = false;
-      console.log("Scanner stopped");
-    }
-  };
-
-  return {
-    init: () => {
-      // When the scan button is clicked, show the permission modal
-      document.getElementById("startScanner").addEventListener("click", showPermissionModal);
-      closeModalButton.addEventListener("click", hideModal);
-      document.getElementById("allowCamera").addEventListener("click", showModal);
-      document.getElementById("denyCamera").addEventListener("click", () => {
-        alert("Camera access denied.");
-        hidePermissionModal();
-      });
-    },
-  };
-})();
-
-// Initialize the camera scanner on page load
-document.addEventListener("DOMContentLoaded", () => {
-  CameraScanner.init();
-});
-</script>
-
-<style>
-/* Styling the Permission Modal */
-.permission-modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: none;
-  justify-content: center;
-  align-items: center;
-}
-
-.permission-modal.active {
-  display: flex;
-}
-
-.permission-modal .modal-content {
-  background-color: white;
-  padding: 20px;
-  border-radius: 5px;
-  text-align: center;
-}
-
-.permission-modal button {
-  margin: 10px;
-  padding: 10px;
-  background-color: #4CAF50;
-  color: white;
-  border: none;
-  cursor: pointer;
-}
-
-.permission-modal button#denyCamera {
-  background-color: #f44336;
-}
-
-/* Styling the Camera Modal */
-.camera-modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: none;
-  justify-content: center;
-  align-items: center;
-}
-
-.camera-modal.active {
-  display: flex;
-}
-
-.camera-modal video {
-  max-width: 100%;
-  max-height: 100%;
-}
-
-.camera-modal button {
-  margin-top: 20px;
-  padding: 10px;
-  background-color: red;
-  color: white;
-  border: none;
-  cursor: pointer;
-}
-</style>
+    // Initialize the inventory view on page load
+    renderInventory();
+  </script>
+</body>
+</html>
