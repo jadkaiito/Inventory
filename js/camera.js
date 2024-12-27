@@ -49,16 +49,26 @@ const CameraScanner = (() => {
           throw new Error("No video devices found.");
         }
 
-        // Find the back camera device
-        const backCamera = videoDevices.find(device => device.facing === "environment");
+        // Try to select the back camera based on facing mode or other criteria
+        let deviceId = null;
+        for (let device of videoDevices) {
+          if (device.facing === "environment") {
+            deviceId = device.deviceId;
+            break;
+          }
+        }
 
-        // If no back camera found, fallback to front camera
-        const deviceId = backCamera ? backCamera.deviceId : null;
+        // If no back camera is found, fall back to the first available camera
+        if (!deviceId && videoDevices.length > 0) {
+          deviceId = videoDevices[0].deviceId; // Fallback to the first camera
+        }
+
+        // Stop any existing streams before requesting a new one
+        stopStream();
 
         return navigator.mediaDevices.getUserMedia({
           video: {
-            deviceId: deviceId ? { exact: deviceId } : undefined, // Prefer back camera
-            facingMode: "environment", // Use the back camera by default
+            deviceId: { exact: deviceId }, // Use the selected camera
           },
         });
       })
