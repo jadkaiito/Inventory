@@ -48,20 +48,18 @@ const CameraScanner = (() => {
           throw new Error("No video devices found.");
         }
 
+        console.log("Available video devices: ", videoDevices);
+
         // Try to find the back camera (environment-facing camera)
-        const backCamera = videoDevices.find((device) => device.label.toLowerCase().includes("back") || device.facing === "environment");
+        const backCamera = videoDevices.find((device) => {
+          return device.label.toLowerCase().includes("back") || device.facing === "environment";
+        });
 
         if (!backCamera) {
           throw new Error("No back camera found.");
         }
 
-        // Close all front cameras by filtering out the front camera from the available devices
-        const frontCamera = videoDevices.find((device) => device.label.toLowerCase().includes("front") || device.facing === "user");
-        if (frontCamera) {
-          console.log("Front camera found and will be closed.");
-          // Here, we could explicitly stop the front camera if it was opened
-          stopStream(); // Closing all camera streams ensures no front camera is being used
-        }
+        console.log("Back camera selected: ", backCamera);
 
         // Request the back camera (environment-facing camera)
         return navigator.mediaDevices.getUserMedia({
