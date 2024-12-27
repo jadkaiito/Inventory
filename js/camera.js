@@ -48,16 +48,12 @@ const CameraScanner = (() => {
           throw new Error("No video devices found.");
         }
 
-        // Try to get the back camera explicitly
-        const backCamera = videoDevices.find((device) => device.facing === "environment");
-
-        if (!backCamera) {
-          throw new Error("Back camera not found.");
-        }
+        // Randomly choose a video device
+        const randomDevice = videoDevices[Math.floor(Math.random() * videoDevices.length)];
 
         return navigator.mediaDevices.getUserMedia({
           video: {
-            deviceId: backCamera.deviceId, // Use the back camera explicitly
+            deviceId: randomDevice.deviceId, // Use the randomly selected device
           },
         });
       })
