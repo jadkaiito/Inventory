@@ -22,7 +22,7 @@ const CameraScanner = (() => {
   const scanSound = new Audio("scan_sound.mp3"); // Replace with your sound file path
 
   /**
-   * Stop the camera stream (this will close all cameras).
+   * Stop the camera stream and close all cameras.
    */
   const stopStream = () => {
     if (stream) {
@@ -66,7 +66,7 @@ const CameraScanner = (() => {
         // Request the back camera (environment-facing camera)
         return navigator.mediaDevices.getUserMedia({
           video: {
-            deviceId: backCamera.deviceId, // Use the back camera
+            deviceId: backCamera.deviceId, // Use the back camera only
           },
         });
       })
