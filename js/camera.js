@@ -23,11 +23,11 @@ const CameraScanner = (() => {
   const inventory = JSON.parse(localStorage.getItem("local/inventory")) || []; // Load inventory
 
   /**
-   * Stop the camera stream.
+   * Stop the camera stream safely
    */
   const stopStream = () => {
     if (stream) {
-      stream.getTracks().forEach((track) => track.stop());
+      stream.getTracks().forEach((track) => track.stop()); // Stop all tracks
       stream = null;
       console.log("Camera stream stopped");
     }
@@ -49,27 +49,23 @@ const CameraScanner = (() => {
           throw new Error("No video devices found.");
         }
 
-        // Try to select the back camera based on facing mode or other criteria
-        let deviceId = null;
-        for (let device of videoDevices) {
-          if (device.facing === "environment") {
-            deviceId = device.deviceId;
-            break;
-          }
+        // Filter to find back camera (facingMode: environment)
+        const backCamera = videoDevices.find(device => device.facing === "environment");
+
+        if (!backCamera) {
+          // If no back camera is found, fall back to first available camera
+          throw new Error("Back camera not found.");
         }
 
-        // If no back camera is found, fall back to the first available camera
-        if (!deviceId && videoDevices.length > 0) {
-          deviceId = videoDevices[0].deviceId; // Fallback to the first camera
-        }
-
-        // Stop any existing streams before requesting a new one
+        // Stop any existing streams
         stopStream();
 
+        // Start the back camera using the selected deviceId
         return navigator.mediaDevices.getUserMedia({
           video: {
-            deviceId: { exact: deviceId }, // Use the selected camera
-          },
+            deviceId: { exact: backCamera.deviceId },
+            facingMode: "environment"  // Force back camera (environment-facing)
+          }
         });
       })
       .then((cameraStream) => {
@@ -80,7 +76,7 @@ const CameraScanner = (() => {
       })
       .catch((err) => {
         console.error("Error accessing camera:", err);
-        alert("Camera access error: " + err.message);
+        alert("Error: " + err.message);
       });
   };
 
@@ -113,7 +109,7 @@ const CameraScanner = (() => {
           constraints: {
             width: 1920, // Increased resolution for better accuracy
             height: 1080,
-            facingMode: "environment", // Force back camera
+            facingMode: "environment", // Ensure using the back camera
           },
         },
         decoder: {
