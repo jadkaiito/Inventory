@@ -1,17 +1,3 @@
-<!-- HTML: Camera Permission Modal -->
-<div id="cameraPermissionModal" class="permission-modal">
-  <div class="modal-content">
-    <h3>Camera Access Required</h3>
-    <p>This website requires access to your camera to scan barcodes. Please grant permission for the camera to function.</p>
-    <button id="allowCamera">Allow Camera</button>
-    <button id="denyCamera">Deny</button>
-  </div>
-</div>
-
-<!-- Add your camera display element here -->
-<video id="video" width="640" height="480" autoplay></video>
-
-<script>
 // camera.js
 
 // Patch to ensure all canvas contexts use willReadFrequently
@@ -31,13 +17,12 @@ const CameraScanner = (() => {
   let scannerActive = false;
   let stream = null; // Keep track of the camera stream
   const modal = document.getElementById("cameraModal");
-  const permissionModal = document.getElementById("cameraPermissionModal");
   const videoElement = document.getElementById("video");
   const closeModalButton = document.getElementById("closeModal");
   const scanSound = new Audio("scan_sound.mp3"); // Replace with your sound file path
 
   /**
-   * Stop the camera stream and close all cameras.
+   * Stop the camera stream.
    */
   const stopStream = () => {
     if (stream) {
@@ -48,24 +33,9 @@ const CameraScanner = (() => {
   };
 
   /**
-   * Show the camera permission modal to the user.
-   */
-  const showPermissionModal = () => {
-    permissionModal.classList.add("active");
-  };
-
-  /**
-   * Hide the camera permission modal.
-   */
-  const hidePermissionModal = () => {
-    permissionModal.classList.remove("active");
-  };
-
-  /**
    * Show the camera modal and request camera access.
    */
   const showModal = () => {
-    hidePermissionModal(); // Close the permission modal once the user accepts
     modal.classList.add("active");
 
     // Check for available devices and request camera access
@@ -78,16 +48,9 @@ const CameraScanner = (() => {
           throw new Error("No video devices found.");
         }
 
-        console.log("Available video devices: ", videoDevices);
-
-        // Select the first available video device (front or back)
-        const selectedCamera = videoDevices[0];
-        console.log("Selected camera: ", selectedCamera);
-
-        // Request the selected camera (front or back)
         return navigator.mediaDevices.getUserMedia({
           video: {
-            deviceId: selectedCamera.deviceId, // Use the first available camera
+            facingMode: videoDevices.length > 1 ? "environment" : "user", // Fallback to "user" for single camera devices
           },
         });
       })
@@ -128,7 +91,7 @@ const CameraScanner = (() => {
           constraints: {
             width: 1920, // Increased resolution for better accuracy
             height: 1080,
-            facingMode: "environment", // Ensures back camera is used if available
+            facingMode: "environment",
           },
         },
         decoder: {
@@ -184,13 +147,8 @@ const CameraScanner = (() => {
 
   return {
     init: () => {
-      document.getElementById("startScanner").addEventListener("click", showPermissionModal);
+      document.getElementById("startScanner").addEventListener("click", showModal);
       closeModalButton.addEventListener("click", hideModal);
-      document.getElementById("allowCamera").addEventListener("click", showModal);
-      document.getElementById("denyCamera").addEventListener("click", () => {
-        alert("Camera access denied.");
-        hidePermissionModal();
-      });
     },
   };
 })();
@@ -199,43 +157,3 @@ const CameraScanner = (() => {
 document.addEventListener("DOMContentLoaded", () => {
   CameraScanner.init();
 });
-</script>
-
-<style>
-/* Styling the Permission Modal */
-.permission-modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: none;
-  justify-content: center;
-  align-items: center;
-}
-
-.permission-modal.active {
-  display: flex;
-}
-
-.permission-modal .modal-content {
-  background-color: white;
-  padding: 20px;
-  border-radius: 5px;
-  text-align: center;
-}
-
-.permission-modal button {
-  margin: 10px;
-  padding: 10px;
-  background-color: #4CAF50;
-  color: white;
-  border: none;
-  cursor: pointer;
-}
-
-.permission-modal button#denyCamera {
-  background-color: #f44336;
-}
-</style>
