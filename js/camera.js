@@ -20,7 +20,6 @@ const CameraScanner = (() => {
   const videoElement = document.getElementById("video");
   const closeModalButton = document.getElementById("closeModal");
   const scanSound = new Audio("scan_sound.mp3"); // Replace with your sound file path
-  const inventory = JSON.parse(localStorage.getItem("local/inventory")) || []; // Load inventory
 
   /**
    * Stop the camera stream.
@@ -49,11 +48,9 @@ const CameraScanner = (() => {
           throw new Error("No video devices found.");
         }
 
-        // Explicitly use the back camera (facingMode: 'environment')
         return navigator.mediaDevices.getUserMedia({
           video: {
-            facingMode: "environment", // Use back camera
-            deviceId: videoDevices.find(device => device.facing === "environment")?.deviceId // Ensure the back camera is selected if multiple cameras are available
+            facingMode: videoDevices.length > 1 ? "environment" : "user", // Fallback to "user" for single camera devices
           },
         });
       })
@@ -66,6 +63,7 @@ const CameraScanner = (() => {
       .catch((err) => {
         console.error("Error accessing camera:", err);
         alert("Camera access error: " + err.message);
+        modal.classList.remove("active");
       });
   };
 
@@ -74,8 +72,8 @@ const CameraScanner = (() => {
    */
   const hideModal = () => {
     modal.classList.remove("active");
-    stopScanner();
     stopStream();
+    stopScanner();
   };
 
   /**
@@ -83,11 +81,6 @@ const CameraScanner = (() => {
    */
   const initScanner = () => {
     if (scannerActive) return;
-
-    if (!stream) {
-      console.error("No camera stream available. Cannot initialize scanner.");
-      return;
-    }
 
     Quagga.init(
       {
@@ -98,7 +91,7 @@ const CameraScanner = (() => {
           constraints: {
             width: 1920, // Increased resolution for better accuracy
             height: 1080,
-            facingMode: "environment", // Force back camera
+            facingMode: "environment",
           },
         },
         decoder: {
@@ -135,7 +128,7 @@ const CameraScanner = (() => {
       if (barcode) {
         scanSound.play();
         document.getElementById("barcode").value = barcode;
-        console.log(`Barcode Scanned: ${barcode}`);
+        alert(`Barcode Scanned: ${barcode}`);
         hideModal(); // Automatically close after scan
       }
     });
@@ -152,81 +145,10 @@ const CameraScanner = (() => {
     }
   };
 
-  /**
-   * Add an item to the inventory.
-   */
-  const addItemToInventory = (barcode, name, quantity, price) => {
-    if (!barcode || !name || isNaN(quantity) || isNaN(price)) {
-      alert("Please fill in all fields correctly.");
-      return;
-    }
-
-    const existingItem = inventory.find((item) => item.barcode === barcode);
-    if (existingItem) {
-      alert("Item with this barcode already exists!");
-      return;
-    }
-
-    const reference = `${Date.now()}-${barcode}`; // Simplified reference generation
-    const newItem = { reference, barcode, name, quantity, price };
-    inventory.push(newItem);
-
-    // Save updated inventory to localStorage
-    localStorage.setItem("local/inventory", JSON.stringify(inventory));
-    displayInventory(); // Refresh the inventory table
-    alert("Item added successfully!");
-  };
-
-  /**
-   * Display the inventory in the table.
-   */
-  const displayInventory = () => {
-    const tableBody = document.querySelector("#inventoryTable tbody");
-    tableBody.innerHTML = "";
-    inventory.forEach((item, index) => {
-      const row = `<tr>
-        <td>${item.reference}</td>
-        <td>${item.barcode}</td>
-        <td>${item.name}</td>
-        <td>${item.quantity}</td>
-        <td>${item.price.toFixed(2)}</td>
-        <td>
-          <button onclick="editItem(${index})">Edit</button>
-          <button onclick="deleteItem(${index})">Delete</button>
-        </td>
-      </tr>`;
-      tableBody.innerHTML += row;
-    });
-  };
-
-  /**
-   * Bind form submission for adding items.
-   */
-  const bindFormSubmission = () => {
-    document.getElementById("addItemForm").addEventListener("submit", (e) => {
-      e.preventDefault(); // Prevent form refresh
-      const barcode = document.getElementById("barcode").value;
-      const name = document.getElementById("name").value;
-      const quantity = parseInt(document.getElementById("quantity").value, 10);
-      const price = parseFloat(document.getElementById("price").value);
-      addItemToInventory(barcode, name, quantity, price);
-      e.target.reset(); // Clear the form
-    });
-  };
-
-  /**
-   * Bind event listeners for the scanner modal.
-   */
-  const bindModalControls = () => {
-    document.getElementById("startScanner").addEventListener("click", showModal);
-    closeModalButton.addEventListener("click", hideModal);
-  };
-
   return {
     init: () => {
-      bindModalControls();
-      bindFormSubmission();
-      displayInventory(); // Initial display
+      document.getElementById("startScanner").addEventListener("click", showModal);
+      closeModalButton.addEventListener("click", hideModal);
     },
   };
 })();
