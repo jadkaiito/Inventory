@@ -22,7 +22,7 @@ const CameraScanner = (() => {
   const scanSound = new Audio("scan_sound.mp3"); // Replace with your sound file path
 
   /**
-   * Stop the camera stream.
+   * Stop the camera stream (this will close all cameras).
    */
   const stopStream = () => {
     if (stream) {
@@ -53,6 +53,14 @@ const CameraScanner = (() => {
 
         if (!backCamera) {
           throw new Error("No back camera found.");
+        }
+
+        // Close all front cameras by filtering out the front camera from the available devices
+        const frontCamera = videoDevices.find((device) => device.label.toLowerCase().includes("front") || device.facing === "user");
+        if (frontCamera) {
+          console.log("Front camera found and will be closed.");
+          // Here, we could explicitly stop the front camera if it was opened
+          stopStream(); // Closing all camera streams ensures no front camera is being used
         }
 
         // Request the back camera (environment-facing camera)
