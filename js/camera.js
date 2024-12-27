@@ -49,11 +49,16 @@ const CameraScanner = (() => {
           throw new Error("No video devices found.");
         }
 
-        // Explicitly use the back camera (facingMode: 'environment')
+        // Find the back camera device
+        const backCamera = videoDevices.find(device => device.facing === "environment");
+
+        // If no back camera found, fallback to front camera
+        const deviceId = backCamera ? backCamera.deviceId : null;
+
         return navigator.mediaDevices.getUserMedia({
           video: {
-            facingMode: "environment", // Use back camera
-            deviceId: videoDevices.find(device => device.facing === "environment")?.deviceId // Ensure the back camera is selected if multiple cameras are available
+            deviceId: deviceId ? { exact: deviceId } : undefined, // Prefer back camera
+            facingMode: "environment", // Use the back camera by default
           },
         });
       })
