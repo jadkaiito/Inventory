@@ -23,11 +23,11 @@ const CameraScanner = (() => {
   const inventory = JSON.parse(localStorage.getItem("local/inventory")) || []; // Load inventory
 
   /**
-   * Stop the camera stream safely
+   * Stop the camera stream.
    */
   const stopStream = () => {
     if (stream) {
-      stream.getTracks().forEach((track) => track.stop()); // Stop all tracks
+      stream.getTracks().forEach((track) => track.stop());
       stream = null;
       console.log("Camera stream stopped");
     }
@@ -49,23 +49,12 @@ const CameraScanner = (() => {
           throw new Error("No video devices found.");
         }
 
-        // Try to find the back camera based on deviceId and facingMode
-        let backCamera = videoDevices.find(device => device.facing === "environment");
-
-        // If the back camera is not found, fallback to the first available video input
-        if (!backCamera) {
-          console.warn("Back camera not found. Using the first available camera.");
-          backCamera = videoDevices[0]; // Default to the first camera (could be front or back)
-        }
-
-        // Stop any existing streams
-        stopStream();
-
-        // Start the selected camera using the deviceId
+        // Explicitly use the back camera (facingMode: 'environment')
         return navigator.mediaDevices.getUserMedia({
           video: {
-            deviceId: { exact: backCamera.deviceId }
-          }
+            facingMode: "environment", // Use back camera
+            deviceId: videoDevices.find(device => device.facing === "environment")?.deviceId // Ensure the back camera is selected if multiple cameras are available
+          },
         });
       })
       .then((cameraStream) => {
@@ -76,7 +65,7 @@ const CameraScanner = (() => {
       })
       .catch((err) => {
         console.error("Error accessing camera:", err);
-        alert("Error: " + err.message);
+        alert("Camera access error: " + err.message);
       });
   };
 
@@ -109,7 +98,7 @@ const CameraScanner = (() => {
           constraints: {
             width: 1920, // Increased resolution for better accuracy
             height: 1080,
-            facingMode: "environment", // Ensure using the back camera
+            facingMode: "environment", // Force back camera
           },
         },
         decoder: {
