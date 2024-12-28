@@ -230,12 +230,18 @@
             },
             decoder: {
               readers: ["code_128_reader", "ean_reader", "ean_13_reader", "code_39_reader"] // Add multiple readers
-            }
+            },
+            locator: {
+              patchSize: "medium",
+              halfSample: true
+            },
+            frequency: 10
           }, function(err) {
             if (err) {
-              console.error(err);
+              console.error('Error initializing Quagga:', err);
               return;
             }
+            console.log("Quagga initialized successfully.");
             Quagga.start();
           });
 
@@ -243,6 +249,7 @@
           Quagga.onDetected(function(result) {
             const barcode = result.codeResult.code;
             document.querySelector('#barcode').value = barcode;
+            console.log("Detected barcode:", barcode); // Debugging
             closeScanner();
           });
         })
@@ -283,11 +290,9 @@
         const reader = new FileReader();
         reader.onload = function(e) {
           const importedData = JSON.parse(e.target.result);
-          if (Array.isArray(importedData)) {
-            inventory = importedData;
-            localStorage.setItem("local/inventory", JSON.stringify(inventory));
-            renderInventory();
-          }
+          inventory = importedData;
+          localStorage.setItem("local/inventory", JSON.stringify(inventory));
+          renderInventory();
         };
         reader.readAsText(file);
       });
@@ -295,15 +300,14 @@
       input.click();
     }
 
-    // Ensure event listeners are set after the DOM is loaded
-    document.addEventListener('DOMContentLoaded', () => {
-      document.querySelector('#startScanner').addEventListener('click', startScanner);
-      document.querySelector('#closeModal').addEventListener('click', closeScanner);
-      document.querySelector('#exportInventory').addEventListener('click', exportInventory);
-      document.querySelector('#importInventory').addEventListener('click', importInventory);
+    // Event Listeners
+    document.querySelector("#startScanner").addEventListener('click', startScanner);
+    document.querySelector("#closeModal").addEventListener('click', closeScanner);
+    document.querySelector("#importInventory").addEventListener('click', importInventory);
+    document.querySelector("#exportInventory").addEventListener('click', exportInventory);
 
-      renderInventory();
-    });
+    // Initialize inventory rendering
+    renderInventory();
   </script>
 </body>
 </html>
