@@ -102,26 +102,7 @@
     #closeModal:hover {
       background-color: #c82333;
     }
-    #exportImportButtons {
-      display: flex;
-      justify-content: center;
-      gap: 15px;
-      margin-top: 20px;
-    }
-    #exportBtn, #importBtn {
-      background-color: #28a745;
-      color: white;
-      border: none;
-      padding: 10px 20px;
-      border-radius: 5px;
-      cursor: pointer;
-      transition: background-color 0.3s ease;
-    }
-    #exportBtn:hover, #importBtn:hover {
-      background-color: #218838;
-    }
   </style>
-  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.0/dist/JsBarcode.all.min.js"></script>
 </head>
 <body>
   <h1>Inventory System</h1>
@@ -152,13 +133,6 @@
     <tbody></tbody>
   </table>
 
-  <!-- Export/Import Buttons -->
-  <div id="exportImportButtons">
-    <button id="exportBtn">Export Inventory</button>
-    <input type="file" id="importBtn" accept=".json" style="display: none;" />
-    <button onclick="document.getElementById('importBtn').click()">Import Inventory</button>
-  </div>
-
   <!-- Camera Modal for Barcode Scanning -->
   <div id="cameraModal">
     <div id="cameraContent">
@@ -169,8 +143,7 @@
   </div>
 
   <!-- Quagga JS and Barcode Sound -->
-  <script src="js/quagga.js"></script>
-  <script src="js/camera.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
 
   <script>
     let inventory = JSON.parse(localStorage.getItem("local/inventory")) || [];
@@ -183,21 +156,13 @@
         const row = document.createElement('tr');
         row.innerHTML = `
           <td>${index + 1}</td>
-          <td><img id="barcodeImg${index}" src="" alt="Barcode" /></td>
+          <td>${item.barcode}</td>
           <td>${item.name}</td>
           <td>${item.quantity}</td>
           <td>${item.price}</td>
           <td><button onclick="removeItem(${index})">Remove</button> <button onclick="editItem(${index})">Edit</button></td>
         `;
         tableBody.appendChild(row);
-
-        // Generate barcode for each item
-        JsBarcode(`#barcodeImg${index}`, item.barcode, {
-          format: "CODE128",
-          lineColor: "#ffffff",
-          width: 2,
-          height: 30,
-        });
       });
     }
 
@@ -231,6 +196,63 @@
       document.querySelector('#addItemForm').reset();
     });
 
+    // Initialize Quagga for barcode scanning
+    function startScanner() {
+      const modal = document.getElementById('cameraModal');
+      modal.classList.add('active');
+      const video = document.getElementById('video');
+      const constraints = {
+        video: {
+          facingMode: "environment"
+        }
+      };
+      
+      // Open camera
+      navigator.mediaDevices.getUserMedia(constraints)
+        .then((stream) => {
+          video.srcObject = stream;
+          video.play();
+          
+          Quagga.init({
+            inputStream: {
+              name: "Live",
+              type: "LiveStream",
+              target: video
+            },
+            decoder: {
+              readers: ["code_128_reader"] // Change if you need another barcode format
+            }
+          }, function(err) {
+            if (err) {
+              console.error(err);
+              return;
+            }
+            Quagga.start();
+          });
+
+          // Handle detected barcode
+          Quagga.onDetected(function(result) {
+            const barcode = result.codeResult.code;
+            document.querySelector('#barcode').value = barcode;
+            closeScanner();
+          });
+        })
+        .catch((err) => {
+          console.error('Camera error: ', err);
+        });
+    }
+
+    // Close scanner modal
+    function closeScanner() {
+      const modal = document.getElementById('cameraModal');
+      modal.classList.remove('active');
+      Quagga.stop();
+    }
+
+    // Event listeners
+    document.querySelector('#startScanner').addEventListener('click', startScanner);
+    document.querySelector('#closeModal').addEventListener('click', closeScanner);
+
     // Export inventory to JSON file
     document.querySelector('#exportBtn').addEventListener('click', () => {
       const blob = new Blob([JSON.stringify(inventory)], { type: 'application/json' });
@@ -238,21 +260,6 @@
       link.href = URL.createObjectURL(blob);
       link.download = 'inventory.json';
       link.click();
-    });
-
-    // Import inventory from JSON file
-    document.querySelector('#importBtn').addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = function(event) {
-          const data = JSON.parse(event.target.result);
-          inventory = data;
-          localStorage.setItem("local/inventory", JSON.stringify(inventory));
-          renderInventory();
-        };
-        reader.readAsText(file);
-      }
     });
 
     // Initialize the inventory view on page load
