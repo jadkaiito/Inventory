@@ -36,6 +36,7 @@ const CameraScanner = (() => {
    * Show the camera modal and request camera access.
    */
   const showModal = () => {
+    console.log("Opening camera modal");
     modal.classList.add("active");
 
     // Check for available devices and request camera access
@@ -43,27 +44,28 @@ const CameraScanner = (() => {
       .enumerateDevices()
       .then((devices) => {
         const videoDevices = devices.filter((device) => device.kind === "videoinput");
-
-        if (videoDevices.length === 0) {
+        if (!videoDevices.length) {
           throw new Error("No video devices found.");
         }
 
-        return navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: videoDevices.length > 1 ? "environment" : "user", // Fallback to "user" for single camera devices
-          },
-        });
+        const facingMode = videoDevices.length > 1 ? "environment" : "user";
+        return navigator.mediaDevices.getUserMedia({ video: { facingMode } });
       })
       .then((cameraStream) => {
+        console.log("Camera stream obtained");
         stream = cameraStream;
         videoElement.srcObject = stream;
-        videoElement.play();
+
+        return videoElement.play();
+      })
+      .then(() => {
+        console.log("Video playback started");
         initScanner();
       })
       .catch((err) => {
-        console.error("Error accessing camera:", err);
-        alert("Camera access error: " + err.message);
-        modal.classList.remove("active");
+        console.error("Error in showModal:", err);
+        alert("Camera error: " + err.message);
+        hideModal();
       });
   };
 
@@ -71,6 +73,7 @@ const CameraScanner = (() => {
    * Hide the camera modal and stop the scanner.
    */
   const hideModal = () => {
+    console.log("Closing camera modal");
     modal.classList.remove("active");
     stopStream();
     stopScanner();
@@ -82,6 +85,8 @@ const CameraScanner = (() => {
   const initScanner = () => {
     if (scannerActive) return;
 
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
     Quagga.init(
       {
         inputStream: {
@@ -89,32 +94,21 @@ const CameraScanner = (() => {
           type: "LiveStream",
           target: videoElement,
           constraints: {
-            width: 1920, // Increased resolution for better accuracy
-            height: 1080,
+            width: isMobile ? 1280 : 1920,
+            height: isMobile ? 720 : 1080,
             facingMode: "environment",
           },
         },
         decoder: {
-          readers: [
-            "code_128_reader",
-            "ean_reader",
-            "ean_8_reader",
-            "code_39_reader",
-            "upc_reader",
-          ],
-          multiple: false, // Only focus on a single barcode
-        },
-        locator: {
-          halfSample: false,
-          patchSize: "large", // Larger patches for higher accuracy
-          debug: { showCanvas: false },
+          readers: ["code_128_reader", "ean_reader"], // Fewer readers for performance
+          multiple: false,
         },
         locate: true,
-        debug: false, // Disable debug mode to reduce overhead
       },
       (err) => {
         if (err) {
           console.error("Error initializing Quagga:", err);
+          hideModal();
           return;
         }
         console.log("Scanner initialized successfully");
@@ -126,6 +120,7 @@ const CameraScanner = (() => {
     Quagga.onDetected((result) => {
       const barcode = result.codeResult.code;
       if (barcode) {
+        console.log(`Barcode detected: ${barcode}`);
         scanSound.play();
         document.getElementById("barcode").value = barcode;
         alert(`Barcode Scanned: ${barcode}`);
