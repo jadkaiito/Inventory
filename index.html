@@ -121,6 +121,7 @@
       background-color: #218838;
     }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.0/dist/JsBarcode.all.min.js"></script>
 </head>
 <body>
   <h1>Inventory System</h1>
@@ -182,13 +183,21 @@
         const row = document.createElement('tr');
         row.innerHTML = `
           <td>${index + 1}</td>
-          <td>${item.barcode}</td>
+          <td><img id="barcodeImg${index}" src="" alt="Barcode" /></td>
           <td>${item.name}</td>
           <td>${item.quantity}</td>
           <td>${item.price}</td>
           <td><button onclick="removeItem(${index})">Remove</button> <button onclick="editItem(${index})">Edit</button></td>
         `;
         tableBody.appendChild(row);
+
+        // Generate barcode for each item
+        JsBarcode(`#barcodeImg${index}`, item.barcode, {
+          format: "CODE128",
+          lineColor: "#ffffff",
+          width: 2,
+          height: 30,
+        });
       });
     }
 
