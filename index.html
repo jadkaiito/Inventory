@@ -142,6 +142,12 @@
     </div>
   </div>
 
+  <!-- Import and Export Buttons -->
+  <div style="margin-top: 20px;">
+    <button id="importInventory" type="button">Import Inventory</button>
+    <button id="exportInventory" type="button">Export Inventory</button>
+  </div>
+
   <!-- Quagga JS and Barcode Sound -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
 
@@ -249,21 +255,52 @@
       Quagga.stop();
     }
 
-    // Event listeners
-    document.querySelector('#startScanner').addEventListener('click', startScanner);
-    document.querySelector('#closeModal').addEventListener('click', closeScanner);
+    // Export inventory as JSON
+    function exportInventory() {
+      const dataStr = JSON.stringify(inventory);
+      const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
+      const exportFileName = 'inventory.json';
 
-    // Export inventory to JSON file
-    document.querySelector('#exportBtn').addEventListener('click', () => {
-      const blob = new Blob([JSON.stringify(inventory)], { type: 'application/json' });
       const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = 'inventory.json';
+      link.setAttribute('href', dataUri);
+      link.setAttribute('download', exportFileName);
       link.click();
-    });
+    }
 
-    // Initialize the inventory view on page load
-    renderInventory();
+    // Import inventory from JSON
+    function importInventory() {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.json';
+
+      input.addEventListener('change', function(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const importedData = JSON.parse(e.target.result);
+          if (Array.isArray(importedData)) {
+            inventory = importedData;
+            localStorage.setItem("local/inventory", JSON.stringify(inventory));
+            renderInventory();
+          }
+        };
+        reader.readAsText(file);
+      });
+
+      input.click();
+    }
+
+    // Ensure event listeners are set after the DOM is loaded
+    document.addEventListener('DOMContentLoaded', () => {
+      document.querySelector('#startScanner').addEventListener('click', startScanner);
+      document.querySelector('#closeModal').addEventListener('click', closeScanner);
+      document.querySelector('#exportInventory').addEventListener('click', exportInventory);
+      document.querySelector('#importInventory').addEventListener('click', importInventory);
+
+      renderInventory();
+    });
   </script>
 </body>
 </html>
