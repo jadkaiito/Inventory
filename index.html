@@ -218,15 +218,18 @@
         .then((stream) => {
           video.srcObject = stream;
           video.play();
-          
+
           Quagga.init({
             inputStream: {
               name: "Live",
               type: "LiveStream",
-              target: video
+              target: video,
+              constraints: {
+                facingMode: "environment" // For rear camera
+              }
             },
             decoder: {
-              readers: ["code_128_reader"] // Change if you need another barcode format
+              readers: ["code_128_reader", "ean_reader", "ean_13_reader", "code_39_reader"] // Add multiple readers
             }
           }, function(err) {
             if (err) {
