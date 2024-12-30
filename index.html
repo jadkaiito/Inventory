@@ -4,8 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Inventory System - Authentication</title>
-  <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth.js"></script>
+  <!-- Firebase Compatibility SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -72,8 +73,8 @@
     };
 
     // Initialize Firebase
-    const app = firebase.initializeApp(firebaseConfig);
-    const auth = firebase.getAuth();
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
 
     // DOM Elements
     const authContainer = document.getElementById("auth");
@@ -107,7 +108,7 @@
       if (isLoginMode) {
         // Login
         try {
-          await firebase.signInWithEmailAndPassword(auth, email, password);
+          await auth.signInWithEmailAndPassword(email, password);
           showWelcome();
         } catch (error) {
           alert("Login failed: " + error.message);
@@ -115,7 +116,7 @@
       } else {
         // Register
         try {
-          await firebase.createUserWithEmailAndPassword(auth, email, password);
+          await auth.createUserWithEmailAndPassword(email, password);
           alert("Account created! Please log in.");
           isLoginMode = true;
           authTitle.textContent = "Login";
@@ -129,7 +130,7 @@
     // Logout
     logoutButton.addEventListener("click", async () => {
       try {
-        await firebase.signOut(auth);
+        await auth.signOut();
         showAuth();
       } catch (error) {
         alert("Logout failed: " + error.message);
