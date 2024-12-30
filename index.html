@@ -168,7 +168,8 @@
   </div>
 
   <!-- Quagga JS and Barcode Sound -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+  <script src="js/quagga.js"></script>
+  <script src="js/camera.js"></script>
 
   <script>
     let inventory = JSON.parse(localStorage.getItem("local/inventory")) || [];
@@ -180,12 +181,13 @@
       inventory.forEach((item, index) => {
         const row = document.createElement('tr');
         row.innerHTML = 
-          `<td>${index + 1}</td>
+          <td>${index + 1}</td>
           <td>${item.barcode}</td>
           <td>${item.name}</td>
           <td>${item.quantity}</td>
           <td>${item.price}</td>
-          <td><button onclick="removeItem(${index})">Remove</button> <button onclick="editItem(${index})">Edit</button></td>`;
+          <td><button onclick="removeItem(${index})">Remove</button> <button onclick="editItem(${index})">Edit</button></td>
+        ;
         tableBody.appendChild(row);
       });
     }
@@ -243,59 +245,6 @@
         reader.readAsText(file);
       }
     });
-
-    // Barcode scanner logic
-    const startScannerBtn = document.getElementById('startScanner');
-    const cameraModal = document.getElementById('cameraModal');
-    const closeModalBtn = document.getElementById('closeModal');
-    const video = document.getElementById('video');
-
-    // Start scanner when button clicked
-    startScannerBtn.addEventListener('click', () => {
-      cameraModal.classList.add('active');
-      startScanner();
-    });
-
-    // Close scanner modal
-    closeModalBtn.addEventListener('click', () => {
-      cameraModal.classList.remove('active');
-      stopScanner();
-    });
-
-    // Initialize Quagga and start scanning
-    function startScanner() {
-      Quagga.init({
-        inputStream: {
-          name: 'Live',
-          type: 'LiveStream',
-          target: video,
-          constraints: {
-            facingMode: 'environment'
-          }
-        },
-        decoder: {
-          readers: ['ean_reader', 'ean_13_reader', 'upc_reader']
-        }
-      }, function(err) {
-        if (err) {
-          console.error(err);
-          return;
-        }
-        Quagga.start();
-      });
-
-      Quagga.onDetected(function(result) {
-        const barcode = result.codeResult.code;
-        document.getElementById('barcode').value = barcode;
-        cameraModal.classList.remove('active');
-        Quagga.stop();
-      });
-    }
-
-    // Stop scanner
-    function stopScanner() {
-      Quagga.stop();
-    }
 
     // Initialize the inventory view on page load
     renderInventory();
