@@ -7,6 +7,7 @@
   <!-- Firebase Compatibility SDK -->
   <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-firestore-compat.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -148,6 +149,7 @@
     };
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
+    const db = firebase.firestore();
 
     // Authentication Logic
     const authContainer = document.getElementById("auth");
@@ -209,55 +211,82 @@
     });
 
     // Inventory Logic
-    let inventory = JSON.parse(localStorage.getItem("local/inventory")) || [];
     const tableBody = document.querySelector("#inventoryTable tbody");
 
-    function renderInventory() {
-      tableBody.innerHTML = "";
-      inventory.forEach((item, index) => {
+    async function renderInventory() {
+      const userId = auth.currentUser.uid;
+      const inventoryRef = db.collection('users').doc(userId).collection('inventory');
+
+      tableBody.innerHTML = "";  // Clear the table
+
+      const snapshot = await inventoryRef.get();
+      snapshot.forEach(doc => {
+        const item = doc.data();
         const row = `<tr>
-          <td>${index + 1}</td>
+          <td>${doc.id}</td>
           <td>${item.barcode}</td>
           <td>${item.name}</td>
           <td>${item.quantity}</td>
           <td>${item.price}</td>
           <td>
-            <button onclick="removeItem(${index})">Remove</button>
-            <button onclick="editItem(${index})">Edit</button>
+            <button onclick="removeItem('${doc.id}')">Remove</button>
+            <button onclick="editItem('${doc.id}')">Edit</button>
           </td>
         </tr>`;
         tableBody.innerHTML += row;
       });
     }
 
-    function removeItem(index) {
-      inventory.splice(index, 1);
-      localStorage.setItem("local/inventory", JSON.stringify(inventory));
-      renderInventory();
+    async function removeItem(itemId) {
+      const userId = auth.currentUser.uid;
+      await db.collection('users').doc(userId).collection('inventory').doc(itemId).delete();
+      renderInventory();  // Refresh the inventory view
     }
 
-    function editItem(index) {
-      const item = inventory[index];
+    async function editItem(itemId) {
+      const userId = auth.currentUser.uid;
+      const itemRef = db.collection('users').doc(userId).collection('inventory').doc(itemId);
+      const doc = await itemRef.get();
+      const item = doc.data();
+
       document.querySelector("#barcode").value = item.barcode;
       document.querySelector("#name").value = item.name;
       document.querySelector("#quantity").value = item.quantity;
       document.querySelector("#price").value = item.price;
-      removeItem(index);
+
+      await itemRef.delete();  // Remove original item
     }
 
-    document.getElementById("addItemForm").addEventListener("submit", (e) => {
+    document.getElementById("addItemForm").addEventListener("submit", async (e) => {
       e.preventDefault();
       const barcode = document.querySelector("#barcode").value;
       const name = document.querySelector("#name").value;
       const quantity = document.querySelector("#quantity").value;
       const price = document.querySelector("#price").value;
-      inventory.push({ barcode, name, quantity, price });
-      localStorage.setItem("local/inventory", JSON.stringify(inventory));
-      renderInventory();
-      e.target.reset();
+
+      const userId = auth.currentUser.uid;
+
+      // Save item to Firestore
+      await db.collection('users').doc(userId).collection('inventory').add({
+        barcode,
+        name,
+        quantity,
+        price
+      });
+
+      renderInventory();  // Refresh the inventory view
+      e.target.reset();   // Clear the form
     });
 
-    renderInventory();
+    // Listen to auth state changes to load the inventory
+    auth.onAuthStateChanged(async (user) => {
+      if (user) {
+        showWelcome();
+        await renderInventory();
+      } else {
+        showAuth();
+      }
+    });
   </script>
 </body>
 </html>
