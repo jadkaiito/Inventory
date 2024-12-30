@@ -1,100 +1,153 @@
-// Import necessary modules
-import React, { useState } from 'react';
-import firebase from 'firebase/app';
-import 'firebase/auth';
-import 'firebase/firestore';
-
-// Firebase configuration (replace with your Firebase project's config)
-const firebaseConfig = {
-  apiKey: 'YOUR_API_KEY',
-  authDomain: 'YOUR_AUTH_DOMAIN',
-  projectId: 'YOUR_PROJECT_ID',
-  storageBucket: 'YOUR_STORAGE_BUCKET',
-  messagingSenderId: 'YOUR_MESSAGING_SENDER_ID',
-  appId: 'YOUR_APP_ID',
-};
-
-// Initialize Firebase
-if (!firebase.apps.length) {
-  firebase.initializeApp(firebaseConfig);
-}
-
-const auth = firebase.auth();
-const db = firebase.firestore();
-
-const App = () => {
-  const [isRegistering, setIsRegistering] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [user, setUser] = useState(null);
-
-  // Handle registration
-  const handleRegister = async () => {
-    try {
-      const userCredential = await auth.createUserWithEmailAndPassword(email, password);
-      setUser(userCredential.user);
-      alert('Registration successful!');
-    } catch (error) {
-      alert(`Registration failed: ${error.message}`);
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inventory System - Authentication</title>
+  <!-- Firebase Compatibility SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #1e1e1e;
+      color: white;
+      text-align: center;
+      padding: 20px;
     }
-  };
-
-  // Handle login
-  const handleLogin = async () => {
-    try {
-      const userCredential = await auth.signInWithEmailAndPassword(email, password);
-      setUser(userCredential.user);
-      alert('Login successful!');
-    } catch (error) {
-      alert(`Login failed: ${error.message}`);
+    .auth-container {
+      margin: 20px auto;
+      max-width: 400px;
+      padding: 20px;
+      border: 1px solid #444;
+      border-radius: 10px;
+      background-color: #2c2c2c;
     }
-  };
-
-  // Handle logout
-  const handleLogout = async () => {
-    try {
-      await auth.signOut();
-      setUser(null);
-      alert('Logged out successfully!');
-    } catch (error) {
-      alert(`Logout failed: ${error.message}`);
+    input, button {
+      width: 90%;
+      padding: 10px;
+      margin: 10px 0;
+      border: none;
+      border-radius: 5px;
+      font-size: 16px;
     }
-  };
+    button {
+      background-color: #007bff;
+      color: white;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <h1>Inventory System</h1>
 
-  return (
-    <div>
-      {!user ? (
-        <div>
-          <h1>{isRegistering ? 'Register' : 'Login'}</h1>
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-          {isRegistering ? (
-            <button onClick={handleRegister}>Register</button>
-          ) : (
-            <button onClick={handleLogin}>Login</button>
-          )}
-          <p onClick={() => setIsRegistering(!isRegistering)} style={{ cursor: 'pointer', color: 'blue' }}>
-            {isRegistering ? 'Already have an account? Login here.' : "Don't have an account? Register here."}
-          </p>
-        </div>
-      ) : (
-        <div>
-          <h1>Welcome, {user.email}</h1>
-          <button onClick={handleLogout}>Logout</button>
-        </div>
-      )}
-    </div>
-  );
-};
+  <div class="auth-container" id="auth">
+    <h2 id="authTitle">Login</h2>
+    <input type="email" id="email" placeholder="Email" required>
+    <input type="password" id="password" placeholder="Password" required>
+    <button id="authAction">Login</button>
+    <p id="toggleAuth">Don't have an account? <a href="#" id="switchToRegister">Register here</a></p>
+  </div>
 
-export default App;
+  <div class="auth-container hidden" id="welcome">
+    <h2>Welcome!</h2>
+    <p>You are logged in.</p>
+    <button id="logout">Logout</button>
+  </div>
+
+  <script>
+    // Firebase configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyBp4FWfR8GLz6zdvitnSJUTp9l4ALTorK8",
+  authDomain: "anoti-10cf5.firebaseapp.com",
+  projectId: "anoti-10cf5",
+  storageBucket: "anoti-10cf5.firebasestorage.app",
+  messagingSenderId: "72026208202",
+  appId: "1:72026208202:web:3e4c88f784e8a8d4bb8133",
+    };
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+
+    // DOM Elements
+    const authContainer = document.getElementById("auth");
+    const welcomeContainer = document.getElementById("welcome");
+    const authTitle = document.getElementById("authTitle");
+    const authAction = document.getElementById("authAction");
+    const toggleAuth = document.getElementById("toggleAuth");
+    const switchToRegister = document.getElementById("switchToRegister");
+    const emailInput = document.getElementById("email");
+    const passwordInput = document.getElementById("password");
+    const logoutButton = document.getElementById("logout");
+
+    let isLoginMode = true;
+
+    // Toggle Login/Register
+    switchToRegister.addEventListener("click", (e) => {
+      e.preventDefault();
+      isLoginMode = !isLoginMode;
+      authTitle.textContent = isLoginMode ? "Login" : "Register";
+      authAction.textContent = isLoginMode ? "Login" : "Register";
+      toggleAuth.innerHTML = isLoginMode
+        ? `Don't have an account? <a href="#" id="switchToRegister">Register here</a>`
+        : `Already have an account? <a href="#" id="switchToRegister">Login here</a>`;
+    });
+
+    // Login/Register Action
+    authAction.addEventListener("click", async () => {
+      const email = emailInput.value;
+      const password = passwordInput.value;
+
+      if (isLoginMode) {
+        // Login
+        try {
+          await auth.signInWithEmailAndPassword(email, password);
+          showWelcome();
+        } catch (error) {
+          alert("Login failed: " + error.message);
+        }
+      } else {
+        // Register
+        try {
+          await auth.createUserWithEmailAndPassword(email, password);
+          alert("Account created! Please log in.");
+          isLoginMode = true;
+          authTitle.textContent = "Login";
+          authAction.textContent = "Login";
+        } catch (error) {
+          alert("Registration failed: " + error.message);
+        }
+      }
+    });
+
+    // Logout
+    logoutButton.addEventListener("click", async () => {
+      try {
+        await auth.signOut();
+        showAuth();
+      } catch (error) {
+        alert("Logout failed: " + error.message);
+      }
+    });
+
+    // Show Welcome Screen
+    function showWelcome() {
+      authContainer.classList.add("hidden");
+      welcomeContainer.classList.remove("hidden");
+    }
+
+    // Show Auth Screen
+    function showAuth() {
+      authContainer.classList.remove("hidden");
+      welcomeContainer.classList.add("hidden");
+    }
+  </script>
+</body>
+</html>
