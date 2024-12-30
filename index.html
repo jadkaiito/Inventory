@@ -3,152 +3,68 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Inventory System</title>
+  <title>Inventory System - Authentication</title>
+  <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth.js"></script>
   <style>
     body {
-      font-family: 'Arial', sans-serif;
-      margin: 0;
-      padding: 20px;
+      font-family: Arial, sans-serif;
       background-color: #1e1e1e;
-      color: #fff;
-    }
-    h1 {
-      text-align: center;
-      font-size: 2.5em;
-      margin-bottom: 20px;
-    }
-    #addItemForm {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      align-items: center;
-      margin-bottom: 20px;
-    }
-    #addItemForm input, #addItemForm button {
-      padding: 10px;
-      font-size: 16px;
-      color: #333;
-    }
-    #addItemForm button {
-      background-color: #007bff;
       color: white;
+      text-align: center;
+      padding: 20px;
+    }
+    .auth-container {
+      margin: 20px auto;
+      max-width: 400px;
+      padding: 20px;
+      border: 1px solid #444;
+      border-radius: 10px;
+      background-color: #2c2c2c;
+    }
+    input, button {
+      width: 90%;
+      padding: 10px;
+      margin: 10px 0;
       border: none;
       border-radius: 5px;
-      cursor: pointer;
-      transition: background-color 0.3s ease;
+      font-size: 16px;
     }
-    #addItemForm button:hover {
+    button {
+      background-color: #007bff;
+      color: white;
+      cursor: pointer;
+    }
+    button:hover {
       background-color: #0056b3;
     }
-    #inventoryTable {
-      width: 100%;
-      margin-top: 20px;
-      border-collapse: collapse;
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    }
-    #inventoryTable th, #inventoryTable td {
-      padding: 12px;
-      text-align: center;
-      border: 1px solid #ddd;
-      background-color: #333;
-      color: #fff;
-    }
-    #inventoryTable th {
-      background-color: #007bff;
-    }
-    #exportImportButtons {
-      display: flex;
-      justify-content: center;
-      gap: 15px;
-      margin-top: 20px;
-    }
-    #exportBtn, #importBtn {
-      background-color: #28a745;
-      color: white;
-      border: none;
-      padding: 10px 20px;
-      border-radius: 5px;
-      cursor: pointer;
-      transition: background-color 0.3s ease;
-    }
-    #exportBtn:hover, #importBtn:hover {
-      background-color: #218838;
-    }
-    #loginForm {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      margin-top: 20px;
-    }
-    #loginForm input {
-      padding: 10px;
-      margin-bottom: 10px;
-      font-size: 16px;
-    }
-    #loginForm button {
-      padding: 10px;
-      font-size: 16px;
-      background-color: #007bff;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
+    .hidden {
+      display: none;
     }
   </style>
-  <!-- Firebase SDK -->
-  <script src="https://www.gstatic.com/firebasejs/9.14.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.14.0/firebase-auth.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.14.0/firebase-database.js"></script>
 </head>
 <body>
   <h1>Inventory System</h1>
 
-  <!-- Login Form -->
-  <div id="loginForm">
-    <input type="email" id="email" placeholder="Email" required />
-    <input type="password" id="password" placeholder="Password" required />
-    <button id="loginButton">Login</button>
-    <button id="registerButton">Register</button>
+  <div class="auth-container" id="auth">
+    <h2 id="authTitle">Login</h2>
+    <input type="email" id="email" placeholder="Email" required>
+    <input type="password" id="password" placeholder="Password" required>
+    <button id="authAction">Login</button>
+    <p id="toggleAuth">Don't have an account? <a href="#" id="switchToRegister">Register here</a></p>
   </div>
 
-  <!-- Inventory Form -->
-  <form id="addItemForm">
-    <input type="text" id="barcode" placeholder="Codebar" required readonly />
-    <input type="text" id="name" placeholder="Item Name" required />
-    <input type="number" id="quantity" placeholder="Quantity" required />
-    <input type="number" step="0.01" id="price" placeholder="Price" required />
-    <button type="submit">Add Item</button>
-  </form>
-
-  <!-- Inventory Table -->
-  <h2>Inventory</h2>
-  <table id="inventoryTable" border="1">
-    <thead>
-      <tr>
-        <th>Reference</th>
-        <th>Codebar</th>
-        <th>Name</th>
-        <th>Quantity</th>
-        <th>Price</th>
-        <th>Actions</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-
-  <!-- Export/Import Buttons -->
-  <div id="exportImportButtons">
-    <button id="exportBtn">Export Inventory</button>
-    <input type="file" id="importBtn" accept=".json" style="display: none;" />
-    <button onclick="document.getElementById('importBtn').click()">Import Inventory</button>
+  <div class="auth-container hidden" id="welcome">
+    <h2>Welcome!</h2>
+    <p>You are logged in.</p>
+    <button id="logout">Logout</button>
   </div>
 
-  <script src="js/inventory.js"></script>
   <script>
+    // Firebase configuration
     const firebaseConfig = {
       apiKey: "YOUR_API_KEY",
       authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-      databaseURL: "https://YOUR_PROJECT_ID.firebaseio.com",
       projectId: "YOUR_PROJECT_ID",
       storageBucket: "YOUR_PROJECT_ID.appspot.com",
       messagingSenderId: "YOUR_SENDER_ID",
@@ -157,75 +73,80 @@
 
     // Initialize Firebase
     const app = firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
-    const db = firebase.database();
+    const auth = firebase.getAuth();
 
-    // Auth logic
-    document.getElementById('loginButton').addEventListener('click', () => {
-      const email = document.getElementById('email').value;
-      const password = document.getElementById('password').value;
-      auth.signInWithEmailAndPassword(email, password)
-        .then(userCredential => {
-          alert('Logged in');
-          loadInventory(userCredential.user.uid);
-        })
-        .catch(error => alert(error.message));
-    });
+    // DOM Elements
+    const authContainer = document.getElementById("auth");
+    const welcomeContainer = document.getElementById("welcome");
+    const authTitle = document.getElementById("authTitle");
+    const authAction = document.getElementById("authAction");
+    const toggleAuth = document.getElementById("toggleAuth");
+    const switchToRegister = document.getElementById("switchToRegister");
+    const emailInput = document.getElementById("email");
+    const passwordInput = document.getElementById("password");
+    const logoutButton = document.getElementById("logout");
 
-    document.getElementById('registerButton').addEventListener('click', () => {
-      const email = document.getElementById('email').value;
-      const password = document.getElementById('password').value;
-      auth.createUserWithEmailAndPassword(email, password)
-        .then(userCredential => {
-          alert('Account created');
-        })
-        .catch(error => alert(error.message));
-    });
+    let isLoginMode = true;
 
-    // Inventory Logic
-    let inventory = [];
-
-    // Load inventory for logged in user
-    function loadInventory(userId) {
-      const inventoryRef = db.ref('inventory/' + userId);
-      inventoryRef.once('value', snapshot => {
-        inventory = snapshot.val() || [];
-        renderInventory();
-      });
-    }
-
-    // Save inventory to Firebase
-    function saveInventory(userId) {
-      const inventoryRef = db.ref('inventory/' + userId);
-      inventoryRef.set(inventory);
-    }
-
-    // Render inventory
-    function renderInventory() {
-      const tableBody = document.querySelector('#inventoryTable tbody');
-      tableBody.innerHTML = '';
-      inventory.forEach((item, index) => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-          <td>${index + 1}</td>
-          <td>${item.barcode}</td>
-          <td>${item.name}</td>
-          <td>${item.quantity}</td>
-          <td>${item.price}</td>
-          <td><button onclick="removeItem(${index})">Remove</button> <button onclick="editItem(${index})">Edit</button></td>
-        `;
-        tableBody.appendChild(row);
-      });
-    }
-
-    // Add item
-    document.querySelector('#addItemForm').addEventListener('submit', (e) => {
+    // Toggle Login/Register
+    switchToRegister.addEventListener("click", (e) => {
       e.preventDefault();
-      const barcode = document.querySelector('#barcode').value;
-      const name = document.querySelector('#name').value;
-      const quantity = document.querySelector('#quantity').value;
-      const price = document.querySelector('#price').value;
-      inventory.push({ barcode, name, quantity, price });
-      const userId = auth.currentUser ? auth.currentUser.uid : '';
-      if (userId) saveInventory(userId);
-     
+      isLoginMode = !isLoginMode;
+      authTitle.textContent = isLoginMode ? "Login" : "Register";
+      authAction.textContent = isLoginMode ? "Login" : "Register";
+      toggleAuth.innerHTML = isLoginMode
+        ? `Don't have an account? <a href="#" id="switchToRegister">Register here</a>`
+        : `Already have an account? <a href="#" id="switchToRegister">Login here</a>`;
+    });
+
+    // Login/Register Action
+    authAction.addEventListener("click", async () => {
+      const email = emailInput.value;
+      const password = passwordInput.value;
+
+      if (isLoginMode) {
+        // Login
+        try {
+          await firebase.signInWithEmailAndPassword(auth, email, password);
+          showWelcome();
+        } catch (error) {
+          alert("Login failed: " + error.message);
+        }
+      } else {
+        // Register
+        try {
+          await firebase.createUserWithEmailAndPassword(auth, email, password);
+          alert("Account created! Please log in.");
+          isLoginMode = true;
+          authTitle.textContent = "Login";
+          authAction.textContent = "Login";
+        } catch (error) {
+          alert("Registration failed: " + error.message);
+        }
+      }
+    });
+
+    // Logout
+    logoutButton.addEventListener("click", async () => {
+      try {
+        await firebase.signOut(auth);
+        showAuth();
+      } catch (error) {
+        alert("Logout failed: " + error.message);
+      }
+    });
+
+    // Show Welcome Screen
+    function showWelcome() {
+      authContainer.classList.add("hidden");
+      welcomeContainer.classList.remove("hidden");
+    }
+
+    // Show Auth Screen
+    function showAuth() {
+      authContainer.classList.remove("hidden");
+      welcomeContainer.classList.add("hidden");
+    }
+  </script>
+</body>
+</html>
