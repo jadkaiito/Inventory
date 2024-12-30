@@ -56,52 +56,6 @@
     #inventoryTable th {
       background-color: #007bff;
     }
-    #cameraModal {
-      display: none;
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background-color: black;
-      justify-content: center;
-      align-items: center;
-    }
-    #cameraModal.active {
-      display: flex;
-    }
-    #cameraContent {
-      background-color: white;
-      padding: 20px;
-      border-radius: 8px;
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-      text-align: center;
-    }
-    #video {
-      width: 320px;
-      height: 240px;
-      border: 5px solid #007bff;
-      border-radius: 10px;
-      margin-bottom: 10px;
-    }
-    #scannerTitle {
-      font-size: 1.5em;
-      margin-bottom: 10px;
-      color: #fff;
-    }
-    #closeModal {
-      background-color: #dc3545;
-      color: white;
-      border: none;
-      margin-top: 15px;
-      padding: 10px 20px;
-      border-radius: 5px;
-      cursor: pointer;
-      transition: background-color 0.3s ease;
-    }
-    #closeModal:hover {
-      background-color: #c82333;
-    }
     #exportImportButtons {
       display: flex;
       justify-content: center;
@@ -120,22 +74,53 @@
     #exportBtn:hover, #importBtn:hover {
       background-color: #218838;
     }
+    #loginForm {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-top: 20px;
+    }
+    #loginForm input {
+      padding: 10px;
+      margin-bottom: 10px;
+      font-size: 16px;
+    }
+    #loginForm button {
+      padding: 10px;
+      font-size: 16px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
   </style>
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.14.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.14.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.14.0/firebase-database.js"></script>
 </head>
 <body>
   <h1>Inventory System</h1>
-  
-  <!-- Form to Add Items -->
+
+  <!-- Login Form -->
+  <div id="loginForm">
+    <input type="email" id="email" placeholder="Email" required />
+    <input type="password" id="password" placeholder="Password" required />
+    <button id="loginButton">Login</button>
+    <button id="registerButton">Register</button>
+  </div>
+
+  <!-- Inventory Form -->
   <form id="addItemForm">
-    <input type="text" id="barcode" placeholder="Codebar" required readonly>
-    <input type="text" id="name" placeholder="Item Name" required>
-    <input type="number" id="quantity" placeholder="Quantity" required>
-    <input type="number" step="0.01" id="price" placeholder="Price" required>
-    <button type="button" id="startScanner">Scan Codebar</button>
+    <input type="text" id="barcode" placeholder="Codebar" required readonly />
+    <input type="text" id="name" placeholder="Item Name" required />
+    <input type="number" id="quantity" placeholder="Quantity" required />
+    <input type="number" step="0.01" id="price" placeholder="Price" required />
     <button type="submit">Add Item</button>
   </form>
 
-  <!-- Inventory Display -->
+  <!-- Inventory Table -->
   <h2>Inventory</h2>
   <table id="inventoryTable" border="1">
     <thead>
@@ -158,23 +143,64 @@
     <button onclick="document.getElementById('importBtn').click()">Import Inventory</button>
   </div>
 
-  <!-- Camera Modal for Barcode Scanning -->
-  <div id="cameraModal">
-    <div id="cameraContent">
-      <div id="scannerTitle">Barcode Scanner</div>
-      <video id="video" autoplay></video>
-      <button id="closeModal">Close Scanner</button>
-    </div>
-  </div>
-
-  <!-- Quagga JS and Barcode Sound -->
-  <script src="js/quagga.js"></script>
-  <script src="js/camera.js"></script>
-
+  <script src="js/inventory.js"></script>
   <script>
-    let inventory = JSON.parse(localStorage.getItem("local/inventory")) || [];
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+      databaseURL: "https://YOUR_PROJECT_ID.firebaseio.com",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_PROJECT_ID.appspot.com",
+      messagingSenderId: "YOUR_SENDER_ID",
+      appId: "YOUR_APP_ID"
+    };
 
-    // Function to render inventory table
+    // Initialize Firebase
+    const app = firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.database();
+
+    // Auth logic
+    document.getElementById('loginButton').addEventListener('click', () => {
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      auth.signInWithEmailAndPassword(email, password)
+        .then(userCredential => {
+          alert('Logged in');
+          loadInventory(userCredential.user.uid);
+        })
+        .catch(error => alert(error.message));
+    });
+
+    document.getElementById('registerButton').addEventListener('click', () => {
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      auth.createUserWithEmailAndPassword(email, password)
+        .then(userCredential => {
+          alert('Account created');
+        })
+        .catch(error => alert(error.message));
+    });
+
+    // Inventory Logic
+    let inventory = [];
+
+    // Load inventory for logged in user
+    function loadInventory(userId) {
+      const inventoryRef = db.ref('inventory/' + userId);
+      inventoryRef.once('value', snapshot => {
+        inventory = snapshot.val() || [];
+        renderInventory();
+      });
+    }
+
+    // Save inventory to Firebase
+    function saveInventory(userId) {
+      const inventoryRef = db.ref('inventory/' + userId);
+      inventoryRef.set(inventory);
+    }
+
+    // Render inventory
     function renderInventory() {
       const tableBody = document.querySelector('#inventoryTable tbody');
       tableBody.innerHTML = '';
@@ -192,24 +218,7 @@
       });
     }
 
-    // Function to remove item from inventory
-    function removeItem(index) {
-      inventory.splice(index, 1);
-      localStorage.setItem("local/inventory", JSON.stringify(inventory));
-      renderInventory();
-    }
-
-    // Function to edit item
-    function editItem(index) {
-      const item = inventory[index];
-      document.querySelector("#barcode").value = item.barcode;
-      document.querySelector("#name").value = item.name;
-      document.querySelector("#quantity").value = item.quantity;
-      document.querySelector("#price").value = item.price;
-      removeItem(index);
-    }
-
-    // Add item to inventory
+    // Add item
     document.querySelector('#addItemForm').addEventListener('submit', (e) => {
       e.preventDefault();
       const barcode = document.querySelector('#barcode').value;
@@ -217,37 +226,6 @@
       const quantity = document.querySelector('#quantity').value;
       const price = document.querySelector('#price').value;
       inventory.push({ barcode, name, quantity, price });
-      localStorage.setItem("local/inventory", JSON.stringify(inventory));
-      renderInventory();
-      document.querySelector('#addItemForm').reset();
-    });
-
-    // Export inventory to JSON file
-    document.querySelector('#exportBtn').addEventListener('click', () => {
-      const blob = new Blob([JSON.stringify(inventory)], { type: 'application/json' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = 'inventory.json';
-      link.click();
-    });
-
-    // Import inventory from JSON file
-    document.querySelector('#importBtn').addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = function(event) {
-          const data = JSON.parse(event.target.result);
-          inventory = data;
-          localStorage.setItem("local/inventory", JSON.stringify(inventory));
-          renderInventory();
-        };
-        reader.readAsText(file);
-      }
-    });
-
-    // Initialize the inventory view on page load
-    renderInventory();
-  </script>
-</body>
-</html>
+      const userId = auth.currentUser ? auth.currentUser.uid : '';
+      if (userId) saveInventory(userId);
+     
