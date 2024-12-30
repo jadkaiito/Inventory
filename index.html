@@ -142,12 +142,12 @@
   <!-- Firebase Configuration -->
   <script>
     const firebaseConfig = {
-      apiKey: "AIzaSyBp4FWfR8GLz6zdvitnSJUTp9l4ALTorK8",
-      authDomain: "anoti-10cf5.firebaseapp.com",
-      projectId: "anoti-10cf5",
-      storageBucket: "anoti-10cf5.firebasestorage.app",
-      messagingSenderId: "72026208202",
-      appId: "1:72026208202:web:3e4c88f784e8a8d4bb8133"
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_PROJECT_ID.appspot.com",
+      messagingSenderId: "YOUR_SENDER_ID",
+      appId: "YOUR_APP_ID"
     };
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
@@ -286,6 +286,13 @@
       localStorage.setItem("local/inventory", JSON.stringify(inventory));
       renderInventory();
       addItemForm.reset();
+    });
+
+    // Scanner Button
+    const startScannerButton = document.getElementById("startScanner");
+    startScannerButton.addEventListener("click", () => {
+      // Your scanner code here (this is where you can integrate the barcode scanner)
+      alert("Scanner button clicked! Implement scanner logic.");
     });
 
     // Export Inventory as JSON
