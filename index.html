@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Inventory System</title>
+  <!-- Include Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth.js"></script>
   <style>
@@ -114,17 +115,19 @@
 
   <!-- Firebase Configuration -->
   <script>
+    // Firebase Configuration
     const firebaseConfig = {
       apiKey: "AIzaSyBp4FWfR8GLz6zdvitnSJUTp9l4ALTorK8",
       authDomain: "anoti-10cf5.firebaseapp.com",
       projectId: "anoti-10cf5",
       storageBucket: "anoti-10cf5.appspot.com",
       messagingSenderId: "72026208202",
-      appId: "1:72026208202:web:3e4c88f784e8a8d4bb8133"
+      appId: "72026208202:web:3e4c88f784e8a8d4bb8133"
     };
 
+    // Initialize Firebase
     const app = firebase.initializeApp(firebaseConfig);
-    const auth = firebase.getAuth();
+    const auth = firebase.auth();
 
     const authContainer = document.getElementById("auth");
     const welcomeContainer = document.getElementById("welcome");
@@ -157,14 +160,14 @@
 
       if (isLoginMode) {
         try {
-          await firebase.signInWithEmailAndPassword(auth, email, password);
+          await firebase.auth().signInWithEmailAndPassword(email, password);
           showWelcome();
         } catch (error) {
           alert("Login failed: " + error.message);
         }
       } else {
         try {
-          await firebase.createUserWithEmailAndPassword(auth, email, password);
+          await firebase.auth().createUserWithEmailAndPassword(email, password);
           alert("Account created! Please log in.");
           isLoginMode = true;
           authTitle.textContent = "Login";
@@ -178,7 +181,7 @@
     // Logout Functionality
     logoutButton.addEventListener("click", async () => {
       try {
-        await firebase.signOut(auth);
+        await firebase.auth().signOut();
         showAuth();
       } catch (error) {
         alert("Logout failed: " + error.message);
