@@ -3,7 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Inventory System</title>
+  <title>Inventory System - Authentication</title>
+  <!-- Firebase Compatibility SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
   <style>
     body {
       font-family: 'Arial', sans-serif;
@@ -17,27 +20,24 @@
       font-size: 2.5em;
       margin-bottom: 20px;
     }
-    #addItemForm {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      align-items: center;
-      margin-bottom: 20px;
+    .auth-container, #addItemForm, #inventoryTable, #cameraModal, #exportImportButtons {
+      margin: 20px auto;
+      max-width: 600px;
     }
-    #addItemForm input, #addItemForm button {
+    input, button {
       padding: 10px;
       font-size: 16px;
-      color: #333;
-    }
-    #addItemForm button {
-      background-color: #007bff;
-      color: white;
+      width: 90%;
+      margin: 10px 0;
       border: none;
       border-radius: 5px;
-      cursor: pointer;
-      transition: background-color 0.3s ease;
     }
-    #addItemForm button:hover {
+    button {
+      background-color: #007bff;
+      color: white;
+      cursor: pointer;
+    }
+    button:hover {
       background-color: #0056b3;
     }
     #inventoryTable {
@@ -56,6 +56,10 @@
     #inventoryTable th {
       background-color: #007bff;
     }
+    .hidden {
+      display: none;
+    }
+    /* Camera Modal */
     #cameraModal {
       display: none;
       position: fixed;
@@ -70,13 +74,6 @@
     #cameraModal.active {
       display: flex;
     }
-    #cameraContent {
-      background-color: white;
-      padding: 20px;
-      border-radius: 8px;
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-      text-align: center;
-    }
     #video {
       width: 320px;
       height: 240px;
@@ -84,49 +81,28 @@
       border-radius: 10px;
       margin-bottom: 10px;
     }
-    #scannerTitle {
-      font-size: 1.5em;
-      margin-bottom: 10px;
-      color: #fff;
-    }
-    #closeModal {
-      background-color: #dc3545;
-      color: white;
-      border: none;
-      margin-top: 15px;
-      padding: 10px 20px;
-      border-radius: 5px;
-      cursor: pointer;
-      transition: background-color 0.3s ease;
-    }
-    #closeModal:hover {
-      background-color: #c82333;
-    }
-    #exportImportButtons {
-      display: flex;
-      justify-content: center;
-      gap: 15px;
-      margin-top: 20px;
-    }
-    #exportBtn, #importBtn {
-      background-color: #28a745;
-      color: white;
-      border: none;
-      padding: 10px 20px;
-      border-radius: 5px;
-      cursor: pointer;
-      transition: background-color 0.3s ease;
-    }
-    #exportBtn:hover, #importBtn:hover {
-      background-color: #218838;
-    }
   </style>
 </head>
 <body>
   <h1>Inventory System</h1>
-  
-  <!-- Form to Add Items -->
-  <form id="addItemForm">
+
+  <!-- Authentication Container -->
+  <div class="auth-container" id="auth">
+    <h2 id="authTitle">Login</h2>
+    <input type="email" id="email" placeholder="Email" required>
+    <input type="password" id="password" placeholder="Password" required>
+    <button id="authAction">Login</button>
+    <p id="toggleAuth">Don't have an account? <a href="#" id="switchToRegister">Register here</a></p>
+  </div>
+
+  <div class="auth-container hidden" id="welcome">
+    <h2>Welcome!</h2>
+    <p>You are logged in.</p>
+    <button id="logout">Logout</button>
+  </div>
+
+  <!-- Inventory Form -->
+  <form id="addItemForm" class="hidden">
     <input type="text" id="barcode" placeholder="Codebar" required readonly>
     <input type="text" id="name" placeholder="Item Name" required>
     <input type="number" id="quantity" placeholder="Quantity" required>
@@ -136,8 +112,8 @@
   </form>
 
   <!-- Inventory Display -->
-  <h2>Inventory</h2>
-  <table id="inventoryTable" border="1">
+  <h2 id="inventoryTitle" class="hidden">Inventory</h2>
+  <table id="inventoryTable" class="hidden" border="1">
     <thead>
       <tr>
         <th>Reference</th>
@@ -152,7 +128,7 @@
   </table>
 
   <!-- Export/Import Buttons -->
-  <div id="exportImportButtons">
+  <div id="exportImportButtons" class="hidden">
     <button id="exportBtn">Export Inventory</button>
     <input type="file" id="importBtn" accept=".json" style="display: none;" />
     <button onclick="document.getElementById('importBtn').click()">Import Inventory</button>
@@ -167,136 +143,160 @@
     </div>
   </div>
 
-  <!-- Quagga JS and Firebase -->
-  <script src="https://www.gstatic.com/firebasejs/9.0.2/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.0.2/firebase-database.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
-
+  <!-- Firebase and JavaScript Logic -->
+  <script src="js/quagga.js"></script>
   <script>
     // Firebase Configuration
     const firebaseConfig = {
-      apiKey: "YOUR_API_KEY",
-      authDomain: "YOUR_AUTH_DOMAIN",
-      databaseURL: "YOUR_DATABASE_URL",
-      projectId: "YOUR_PROJECT_ID",
-      storageBucket: "YOUR_STORAGE_BUCKET",
-      messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-      appId: "YOUR_APP_ID",
+      apiKey: "AIzaSyBp4FWfR8GLz6zdvitnSJUTp9l4ALTorK8",
+      authDomain: "anoti-10cf5.firebaseapp.com",
+      projectId: "anoti-10cf5",
+      storageBucket: "anoti-10cf5.firebasestorage.app",
+      messagingSenderId: "72026208202",
+      appId: "1:72026208202:web:3e4c88f784e8a8d4bb8133",
     };
-    
-    // Initialize Firebase
-    const app = firebase.initializeApp(firebaseConfig);
-    const db = firebase.database(app);
 
-    let inventory = [];
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
 
-    // Function to render inventory table
+    // DOM Elements
+    const authContainer = document.getElementById("auth");
+    const welcomeContainer = document.getElementById("welcome");
+    const inventoryForm = document.getElementById("addItemForm");
+    const inventoryTitle = document.getElementById("inventoryTitle");
+    const inventoryTable = document.getElementById("inventoryTable");
+    const exportImportButtons = document.getElementById("exportImportButtons");
+    const logoutButton = document.getElementById("logout");
+
+    let isLoginMode = true;
+    let inventory = JSON.parse(localStorage.getItem("local/inventory")) || [];
+
+    // Toggle Login/Register
+    document.getElementById("switchToRegister").addEventListener("click", (e) => {
+      e.preventDefault();
+      isLoginMode = !isLoginMode;
+      document.getElementById("authTitle").textContent = isLoginMode ? "Login" : "Register";
+      document.getElementById("authAction").textContent = isLoginMode ? "Login" : "Register";
+    });
+
+    // Authentication Action
+    document.getElementById("authAction").addEventListener("click", async () => {
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+
+      if (isLoginMode) {
+        try {
+          await auth.signInWithEmailAndPassword(email, password);
+          showWelcome();
+        } catch (error) {
+          alert("Login failed: " + error.message);
+        }
+      } else {
+        try {
+          await auth.createUserWithEmailAndPassword(email, password);
+          alert("Account created! Please log in.");
+          isLoginMode = true;
+          document.getElementById("authTitle").textContent = "Login";
+          document.getElementById("authAction").textContent = "Login";
+        } catch (error) {
+          alert("Registration failed: " + error.message);
+        }
+      }
+    });
+
+    // Logout Action
+    logoutButton.addEventListener("click", async () => {
+      try {
+        await auth.signOut();
+        showAuth();
+      } catch (error) {
+        alert("Logout failed: " + error.message);
+      }
+    });
+
+    // Show Welcome Screen
+    function showWelcome() {
+      authContainer.classList.add("hidden");
+      welcomeContainer.classList.remove("hidden");
+      inventoryForm.classList.remove("hidden");
+      inventoryTitle.classList.remove("hidden");
+      inventoryTable.classList.remove("hidden");
+      exportImportButtons.classList.remove("hidden");
+      renderInventory();
+    }
+
+    // Show Auth Screen
+    function showAuth() {
+      authContainer.classList.remove("hidden");
+      welcomeContainer.classList.add("hidden");
+      inventoryForm.classList.add("hidden");
+      inventoryTitle.classList.add("hidden");
+      inventoryTable.classList.add("hidden");
+      exportImportButtons.classList.add("hidden");
+    }
+
+    // Render Inventory
     function renderInventory() {
       const tableBody = document.querySelector('#inventoryTable tbody');
       tableBody.innerHTML = '';
       inventory.forEach((item, index) => {
         const row = document.createElement('tr');
-        row.innerHTML = 
-          `<td>${index + 1}</td>
+        row.innerHTML = `
+          <td>${index + 1}</td>
           <td>${item.barcode}</td>
           <td>${item.name}</td>
           <td>${item.quantity}</td>
           <td>${item.price}</td>
-          <td><button onclick="removeItem(${index})">Remove</button> <button onclick="editItem(${index})">Edit</button></td>`;
+          <td><button onclick="removeItem(${index})">Remove</button> <button onclick="editItem(${index})">Edit</button></td>
+        `;
         tableBody.appendChild(row);
       });
     }
 
-    // Function to remove item from inventory
+    // Remove Item
     function removeItem(index) {
-      const item = inventory[index];
-      const ref = db.ref('inventory/' + item.barcode);
-      ref.remove()
-        .then(() => {
-          inventory.splice(index, 1);
-          renderInventory();
-        })
-        .catch(err => console.log("Error removing item: ", err));
+      inventory.splice(index, 1);
+      localStorage.setItem('local/inventory', JSON.stringify(inventory));
+      renderInventory();
     }
 
-    // Function to edit item
+    // Edit Item (Placeholder for future)
     function editItem(index) {
-      const item = inventory[index];
-      document.querySelector("#barcode").value = item.barcode;
-      document.querySelector("#name").value = item.name;
-      document.querySelector("#quantity").value = item.quantity;
-      document.querySelector("#price").value = item.price;
-      removeItem(index);
+      alert('Edit functionality coming soon!');
     }
 
-    // Function to add item to Firebase
-    function addItemToFirebase(item) {
-      const ref = db.ref('inventory/' + item.barcode);
-      ref.set(item)
-        .then(() => {
-          inventory.push(item);
-          renderInventory();
-        })
-        .catch(err => console.log("Error adding item: ", err));
-    }
-
-    // Add item to inventory
-    document.querySelector('#addItemForm').addEventListener('submit', (e) => {
+    // Form Submission
+    inventoryForm.addEventListener("submit", (e) => {
       e.preventDefault();
-      const barcode = document.querySelector('#barcode').value;
-      const name = document.querySelector('#name').value;
-      const quantity = document.querySelector('#quantity').value;
-      const price = document.querySelector('#price').value;
-      const item = { barcode, name, quantity, price };
-      addItemToFirebase(item);
-      document.querySelector('#addItemForm').reset();
+
+      const barcode = document.getElementById("barcode").value;
+      const name = document.getElementById("name").value;
+      const quantity = document.getElementById("quantity").value;
+      const price = document.getElementById("price").value;
+
+      const newItem = { barcode, name, quantity, price };
+      inventory.push(newItem);
+      localStorage.setItem('local/inventory', JSON.stringify(inventory));
+      renderInventory();
+      inventoryForm.reset();
     });
 
-    // Start barcode scanner
-    document.querySelector('#startScanner').addEventListener('click', () => {
-      const modal = document.getElementById('cameraModal');
-      modal.classList.add('active');
-      Quagga.init({
-        inputStream: {
-          name: "Live",
-          type: "LiveStream",
-          target: document.querySelector('#video')
-        },
-        decoder: {
-          readers: ["code_128_reader"]
-        }
-      }, function(err) {
-        if (err) {
-          console.log(err);
-          return;
-        }
-        Quagga.start();
-      });
-
-      Quagga.onDetected(function(result) {
-        document.querySelector('#barcode').value = result.codeResult.code;
-        modal.classList.remove('active');
-        Quagga.stop();
-      });
+    // Barcode Scanner (Camera Modal)
+    document.getElementById("startScanner").addEventListener("click", () => {
+      document.getElementById("cameraModal").classList.add("active");
+      startScanner();
     });
 
-    // Close scanner modal
-    document.querySelector('#closeModal').addEventListener('click', () => {
-      document.getElementById('cameraModal').classList.remove('active');
-      Quagga.stop();
-    });
+    // Start Scanner
+    function startScanner() {
+      // Placeholder for barcode scanning functionality with Quagga or other methods
+      alert('Starting scanner...');
+    }
 
-    // Fetch items from Firebase on page load
-    window.onload = function() {
-      const inventoryRef = db.ref('inventory');
-      inventoryRef.once('value', snapshot => {
-        inventory = [];
-        snapshot.forEach(childSnapshot => {
-          inventory.push(childSnapshot.val());
-        });
-        renderInventory();
-      });
-    };
+    // Close Camera Modal
+    document.getElementById("closeModal").addEventListener("click", () => {
+      document.getElementById("cameraModal").classList.remove("active");
+    });
   </script>
 </body>
 </html>
