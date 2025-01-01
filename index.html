@@ -3,9 +3,46 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Camera Modal</title>
+  <title>Integrated Inventory System</title>
+  <!-- Firebase Compatibility SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-firestore-compat.js"></script>
   <style>
-    /* Modal styles */
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #1e1e1e;
+      color: white;
+      text-align: center;
+      padding: 20px;
+    }
+    .auth-container, #inventorySection {
+      margin: 20px auto;
+      max-width: 800px;
+      padding: 20px;
+      border: 1px solid #444;
+      border-radius: 10px;
+      background-color: #2c2c2c;
+    }
+    input, button {
+      width: 90%;
+      padding: 10px;
+      margin: 10px 0;
+      border: none;
+      border-radius: 5px;
+      font-size: 16px;
+    }
+    button {
+      background-color: #007bff;
+      color: white;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    .hidden {
+      display: none;
+    }
     #cameraModal {
       display: none;
       position: fixed;
@@ -13,81 +50,241 @@
       left: 0;
       width: 100%;
       height: 100%;
-      background: rgba(0, 0, 0, 0.8);
-      z-index: 1000;
+      background-color: rgba(0, 0, 0, 0.8);
       justify-content: center;
       align-items: center;
+      z-index: 1000;
     }
     #cameraModal.active {
       display: flex;
     }
-    video {
-      width: 80%;
-      max-width: 500px;
-      border: 2px solid white;
+    #cameraContent {
+      background-color: white;
+      padding: 20px;
+      border-radius: 8px;
+      text-align: center;
     }
-    #closeModal {
-      position: absolute;
-      top: 20px;
-      right: 20px;
-      background: red;
-      color: white;
-      padding: 10px;
-      border: none;
-      cursor: pointer;
+    #video {
+      width: 320px;
+      height: 240px;
+      border: 5px solid #007bff;
+      border-radius: 10px;
+      margin-bottom: 10px;
     }
   </style>
 </head>
 <body>
-  <button id="startScanner">Scan Codebar</button>
+  <h1>Integrated Inventory System</h1>
 
-  <!-- Camera modal -->
-  <div id="cameraModal">
-    <video id="video" autoplay></video>
-    <button id="closeModal">Close</button>
+  <!-- Authentication -->
+  <div class="auth-container" id="auth">
+    <h2 id="authTitle">Login</h2>
+    <input type="email" id="email" placeholder="Email" required>
+    <input type="password" id="password" placeholder="Password" required>
+    <button id="authAction">Login</button>
+    <p id="toggleAuth">Don't have an account? <a href="#" id="switchToRegister">Register here</a></p>
   </div>
 
-  <!-- JavaScript -->
+  <div class="auth-container hidden" id="welcome">
+    <h2>Welcome!</h2>
+    <p>You are logged in.</p>
+    <button id="logout">Logout</button>
+  </div>
+
+  <!-- Inventory Section -->
+  <div id="inventorySection" class="hidden">
+    <h2>Inventory Management</h2>
+    <form id="addItemForm">
+      <input type="text" id="barcode" placeholder="Codebar" required readonly>
+      <input type="text" id="name" placeholder="Item Name" required>
+      <input type="number" id="quantity" placeholder="Quantity" required>
+      <input type="number" step="0.01" id="price" placeholder="Price" required>
+      <button type="button" id="startScanner">Scan Codebar</button>
+      <button type="submit">Add Item</button>
+    </form>
+
+    <h3>Inventory</h3>
+    <table id="inventoryTable" border="1">
+      <thead>
+        <tr>
+          <th>Reference</th>
+          <th>Codebar</th>
+          <th>Name</th>
+          <th>Quantity</th>
+          <th>Price</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <div>
+      <button id="exportBtn">Export Inventory</button>
+      <input type="file" id="importBtn" accept=".json" style="display: none;" />
+      <button onclick="document.getElementById('importBtn').click()">Import Inventory</button>
+    </div>
+  </div>
+
+  <!-- Camera Modal -->
+  <div id="cameraModal">
+    <div id="cameraContent">
+      <h3>Barcode Scanner</h3>
+      <video id="video" autoplay></video>
+      <button id="closeModal">Close Scanner</button>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="js/quagga.js"></script>
+  <script src="js/camera.js"></script>
   <script>
-    // JavaScript to handle the modal and camera functionality
-    const startScannerButton = document.getElementById('startScanner');
-    const closeModalButton = document.getElementById('closeModal');
-    const cameraModal = document.getElementById('cameraModal');
-    const videoElement = document.getElementById('video');
+    // Firebase Initialization
+    const firebaseConfig = {
+      apiKey: "AIzaSyBp4FWfR8GLz6zdvitnSJUTp9l4ALTorK8",
+      authDomain: "anoti-10cf5.firebaseapp.com",
+      projectId: "anoti-10cf5",
+      storageBucket: "anoti-10cf5.firebasestorage.app",
+      messagingSenderId: "72026208202",
+      appId: "1:72026208202:web:3e4c88f784e8a8d4bb8133"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
 
-    let mediaStream = null;
+    // Authentication Logic
+    const authContainer = document.getElementById("auth");
+    const welcomeContainer = document.getElementById("welcome");
+    const inventorySection = document.getElementById("inventorySection");
 
-    // Function to start the camera
-    async function startCamera() {
+    const emailInput = document.getElementById("email");
+    const passwordInput = document.getElementById("password");
+    const authAction = document.getElementById("authAction");
+    const logoutButton = document.getElementById("logout");
+    let isLoginMode = true;
+
+    document.getElementById("switchToRegister").addEventListener("click", (e) => {
+      e.preventDefault();
+      isLoginMode = !isLoginMode;
+      authAction.textContent = isLoginMode ? "Login" : "Register";
+    });
+
+    authAction.addEventListener("click", async () => {
+      const email = emailInput.value;
+      const password = passwordInput.value;
       try {
-        mediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
-        videoElement.srcObject = mediaStream;
-        cameraModal.classList.add('active');
-      } catch (err) {
-        console.error('Error accessing camera:', err);
-        alert('Unable to access the camera.');
+        if (isLoginMode) {
+          await auth.signInWithEmailAndPassword(email, password);
+        } else {
+          await auth.createUserWithEmailAndPassword(email, password);
+          isLoginMode = true;
+          alert("Account created. Please log in.");
+        }
+        showWelcome();
+      } catch (error) {
+        alert(error.message);
       }
+    });
+
+    logoutButton.addEventListener("click", async () => {
+      await auth.signOut();
+      showAuth();
+    });
+
+    function showAuth() {
+      authContainer.classList.remove("hidden");
+      welcomeContainer.classList.add("hidden");
+      inventorySection.classList.add("hidden");
     }
 
-    // Function to stop the camera
-    function stopCamera() {
-      if (mediaStream) {
-        const tracks = mediaStream.getTracks();
-        tracks.forEach(track => track.stop());
-        mediaStream = null;
-      }
-      videoElement.srcObject = null;
-      cameraModal.classList.remove('active');
+    function showWelcome() {
+      authContainer.classList.add("hidden");
+      welcomeContainer.classList.remove("hidden");
+      inventorySection.classList.remove("hidden");
     }
 
-    // Event listeners
-    startScannerButton.addEventListener('click', startCamera);
-    closeModalButton.addEventListener('click', stopCamera);
+    // Camera Modal
+    document.getElementById("startScanner").addEventListener("click", () => {
+      document.getElementById("cameraModal").classList.add("active");
+    });
+    document.getElementById("closeModal").addEventListener("click", () => {
+      document.getElementById("cameraModal").classList.remove("active");
+    });
 
-    // Ensure camera stops if the modal is closed any other way (e.g., ESC key)
-    window.addEventListener('keydown', (event) => {
-      if (event.key === 'Escape' && cameraModal.classList.contains('active')) {
-        stopCamera();
+    // Inventory Logic
+    const tableBody = document.querySelector("#inventoryTable tbody");
+
+    async function renderInventory() {
+      const userId = auth.currentUser.uid;
+      const inventoryRef = db.collection('users').doc(userId).collection('inventory');
+
+      tableBody.innerHTML = "";  // Clear the table
+
+      const snapshot = await inventoryRef.get();
+      snapshot.forEach(doc => {
+        const item = doc.data();
+        const row = `<tr>
+          <td>${doc.id}</td>
+          <td>${item.barcode}</td>
+          <td>${item.name}</td>
+          <td>${item.quantity}</td>
+          <td>${item.price}</td>
+          <td>
+            <button onclick="removeItem('${doc.id}')">Remove</button>
+            <button onclick="editItem('${doc.id}')">Edit</button>
+          </td>
+        </tr>`;
+        tableBody.innerHTML += row;
+      });
+    }
+
+    async function removeItem(itemId) {
+      const userId = auth.currentUser.uid;
+      await db.collection('users').doc(userId).collection('inventory').doc(itemId).delete();
+      renderInventory();  // Refresh the inventory view
+    }
+
+    async function editItem(itemId) {
+      const userId = auth.currentUser.uid;
+      const itemRef = db.collection('users').doc(userId).collection('inventory').doc(itemId);
+      const doc = await itemRef.get();
+      const item = doc.data();
+
+      document.querySelector("#barcode").value = item.barcode;
+      document.querySelector("#name").value = item.name;
+      document.querySelector("#quantity").value = item.quantity;
+      document.querySelector("#price").value = item.price;
+
+      await itemRef.delete();  // Remove original item
+    }
+
+    document.getElementById("addItemForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const barcode = document.querySelector("#barcode").value;
+      const name = document.querySelector("#name").value;
+      const quantity = document.querySelector("#quantity").value;
+      const price = document.querySelector("#price").value;
+
+      const userId = auth.currentUser.uid;
+
+      // Save item to Firestore
+      await db.collection('users').doc(userId).collection('inventory').add({
+        barcode,
+        name,
+        quantity,
+        price
+      });
+
+      renderInventory();  // Refresh the inventory view
+      e.target.reset();   // Clear the form
+    });
+
+    // Listen to auth state changes to load the inventory
+    auth.onAuthStateChanged(async (user) => {
+      if (user) {
+        showWelcome();
+        await renderInventory();
+      } else {
+        showAuth();
       }
     });
   </script>
