@@ -39,9 +39,9 @@ const CameraScanner = (() => {
     console.log("Opening camera modal");
     modal.classList.add("active");
 
+    // Check for available devices and request camera access
     // Stop any existing camera stream
     stopStream();
-
     // Request back camera access
     navigator.mediaDevices
       .enumerateDevices()
@@ -51,13 +51,14 @@ const CameraScanner = (() => {
           throw new Error("No video devices found.");
         }
 
+        const facingMode = videoDevices.length > 1 ? "environment" : "user";
+        return navigator.mediaDevices.getUserMedia({ video: { facingMode } });
         // Always prioritize the back camera
         const constraints = {
           video: {
             facingMode: { exact: "environment" }, // Use back camera if available
           },
         };
-
         return navigator.mediaDevices.getUserMedia(constraints).catch(() => {
           // Fallback to any available camera if back camera is not accessible
           console.warn("Back camera not accessible, switching to default camera.");
@@ -96,6 +97,7 @@ const CameraScanner = (() => {
    * Initialize QuaggaJS for barcode scanning.
    */
   const initScanner = () => {
+    if (scannerActive) return;
     if (scannerActive) {
       console.warn("Scanner is already active.");
       return;
