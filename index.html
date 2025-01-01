@@ -278,11 +278,11 @@
       e.target.reset();   // Clear the form
     });
 
-    // Listen to auth state changes to load the inventory
-    auth.onAuthStateChanged(async (user) => {
+    // Auth state listener
+    auth.onAuthStateChanged((user) => {
       if (user) {
         showWelcome();
-        await renderInventory();
+        renderInventory();
       } else {
         showAuth();
       }
