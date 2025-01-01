@@ -1,3 +1,6 @@
+Sure thing! To ensure that only the back camera is used when scanning, you can modify the camera initialization code to specify the back camera. Here's the updated code:
+
+```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -205,9 +208,11 @@
     // Camera Modal
     document.getElementById("startScanner").addEventListener("click", () => {
       document.getElementById("cameraModal").classList.add("active");
+      startScanner();
     });
     document.getElementById("closeModal").addEventListener("click", () => {
       document.getElementById("cameraModal").classList.remove("active");
+      stopScanner();
     });
 
     // Inventory Logic
@@ -246,47 +251,4 @@
     async function editItem(itemId) {
       const userId = auth.currentUser.uid;
       const itemRef = db.collection('users').doc(userId).collection('inventory').doc(itemId);
-      const doc = await itemRef.get();
-      const item = doc.data();
-
-      document.querySelector("#barcode").value = item.barcode;
-      document.querySelector("#name").value = item.name;
-      document.querySelector("#quantity").value = item.quantity;
-      document.querySelector("#price").value = item.price;
-
-      await itemRef.delete();  // Remove original item
-    }
-
-    document.getElementById("addItemForm").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const barcode = document.querySelector("#barcode").value;
-      const name = document.querySelector("#name").value;
-      const quantity = document.querySelector("#quantity").value;
-      const price = document.querySelector("#price").value;
-
-      const userId = auth.currentUser.uid;
-
-      // Save item to Firestore
-      await db.collection('users').doc(userId).collection('inventory').add({
-        barcode,
-        name,
-        quantity,
-        price
-      });
-
-      renderInventory();  // Refresh the inventory view
-      e.target.reset();   // Clear the form
-    });
-
-    // Auth state listener
-    auth.onAuthStateChanged((user) => {
-      if (user) {
-        showWelcome();
-        renderInventory();
-      } else {
-        showAuth();
-      }
-    });
-  </script>
-</body>
-</html>
+      const doc = await itemRef
