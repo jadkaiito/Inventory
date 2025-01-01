@@ -22,7 +22,7 @@ const CameraScanner = (() => {
   const scanSound = new Audio("scan_sound.mp3"); // Replace with your sound file path
 
   /**
-   * Stop the camera stream.
+   * Stop the camera stream if active.
    */
   const stopStream = () => {
     if (stream) {
@@ -38,6 +38,12 @@ const CameraScanner = (() => {
   const showModal = () => {
     console.log("Opening camera modal");
     modal.classList.add("active");
+
+    // If there's already a stream, do not request again
+    if (stream) {
+      videoElement.srcObject = stream;
+      return;
+    }
 
     // Check for available devices and request camera access
     navigator.mediaDevices
@@ -75,7 +81,7 @@ const CameraScanner = (() => {
   const hideModal = () => {
     console.log("Closing camera modal");
     modal.classList.remove("active");
-    stopStream();
+    stopStream(); // Ensure the stream is stopped here
     stopScanner();
   };
 
