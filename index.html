@@ -135,45 +135,157 @@
   </div>
 
   <!-- Scripts -->
+  <script src="js/quagga.js"></script>
+  <script src="js/camera.js"></script>
   <script>
-    // Initialize camera variables
-    let currentStream = null;
+    // Firebase Initialization
+    const firebaseConfig = {
+      apiKey: "AIzaSyBp4FWfR8GLz6zdvitnSJUTp9l4ALTorK8",
+      authDomain: "anoti-10cf5.firebaseapp.com",
+      projectId: "anoti-10cf5",
+      storageBucket: "anoti-10cf5.firebasestorage.app",
+      messagingSenderId: "72026208202",
+      appId: "1:72026208202:web:3e4c88f784e8a8d4bb8133"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
 
-    // Start Camera
-    function startCamera() {
-      if (currentStream) {
-        // Stop the previous stream if it's still active
-        currentStream.getTracks().forEach(track => track.stop());
-      }
+    // Authentication Logic
+    const authContainer = document.getElementById("auth");
+    const welcomeContainer = document.getElementById("welcome");
+    const inventorySection = document.getElementById("inventorySection");
 
-      navigator.mediaDevices.getUserMedia({ video: true })
-        .then(stream => {
-          const videoElement = document.getElementById('video');
-          videoElement.srcObject = stream;
-          currentStream = stream;  // Save the stream for future use
-        })
-        .catch(error => {
-          console.error('Error accessing the camera: ', error);
-        });
-    }
+    const emailInput = document.getElementById("email");
+    const passwordInput = document.getElementById("password");
+    const authAction = document.getElementById("authAction");
+    const logoutButton = document.getElementById("logout");
+    let isLoginMode = true;
 
-    // Stop Camera
-    function stopCamera() {
-      if (currentStream) {
-        currentStream.getTracks().forEach(track => track.stop());
-        currentStream = null;  // Clear the stream after stopping
-      }
-    }
-
-    // Camera Modal Logic
-    document.getElementById("startScanner").addEventListener("click", () => {
-      document.getElementById("cameraModal").classList.add("active");
-      startCamera();  // Start the camera when the modal is shown
+    document.getElementById("switchToRegister").addEventListener("click", (e) => {
+      e.preventDefault();
+      isLoginMode = !isLoginMode;
+      authAction.textContent = isLoginMode ? "Login" : "Register";
     });
 
+    authAction.addEventListener("click", async () => {
+      const email = emailInput.value;
+      const password = passwordInput.value;
+      try {
+        if (isLoginMode) {
+          await auth.signInWithEmailAndPassword(email, password);
+        } else {
+          await auth.createUserWithEmailAndPassword(email, password);
+          isLoginMode = true;
+          alert("Account created. Please log in.");
+        }
+        showWelcome();
+      } catch (error) {
+        alert(error.message);
+      }
+    });
+
+    logoutButton.addEventListener("click", async () => {
+      await auth.signOut();
+      showAuth();
+    });
+
+    function showAuth() {
+      authContainer.classList.remove("hidden");
+      welcomeContainer.classList.add("hidden");
+      inventorySection.classList.add("hidden");
+    }
+
+    function showWelcome() {
+      authContainer.classList.add("hidden");
+      welcomeContainer.classList.remove("hidden");
+      inventorySection.classList.remove("hidden");
+    }
+
+    // Camera Modal
+    document.getElementById("startScanner").addEventListener("click", () => {
+      document.getElementById("cameraModal").classList.add("active");
+    });
     document.getElementById("closeModal").addEventListener("click", () => {
       document.getElementById("cameraModal").classList.remove("active");
-      stopCamera();  // Stop the camera when the modal is closed
+    });
+
+    // Inventory Logic
+    const tableBody = document.querySelector("#inventoryTable tbody");
+
+    async function renderInventory() {
+      const userId = auth.currentUser.uid;
+      const inventoryRef = db.collection('users').doc(userId).collection('inventory');
+
+      tableBody.innerHTML = "";  // Clear the table
+
+      const snapshot = await inventoryRef.get();
+      snapshot.forEach(doc => {
+        const item = doc.data();
+        const row = `<tr>
+          <td>${doc.id}</td>
+          <td>${item.barcode}</td>
+          <td>${item.name}</td>
+          <td>${item.quantity}</td>
+          <td>${item.price}</td>
+          <td>
+            <button onclick="removeItem('${doc.id}')">Remove</button>
+            <button onclick="editItem('${doc.id}')">Edit</button>
+          </td>
+        </tr>`;
+        tableBody.innerHTML += row;
+      });
+    }
+
+    async function removeItem(itemId) {
+      const userId = auth.currentUser.uid;
+      await db.collection('users').doc(userId).collection('inventory').doc(itemId).delete();
+      renderInventory();  // Refresh the inventory view
+    }
+
+    async function editItem(itemId) {
+      const userId = auth.currentUser.uid;
+      const itemRef = db.collection('users').doc(userId).collection('inventory').doc(itemId);
+      const doc = await itemRef.get();
+      const item = doc.data();
+
+      document.querySelector("#barcode").value = item.barcode;
+      document.querySelector("#name").value = item.name;
+      document.querySelector("#quantity").value = item.quantity;
+      document.querySelector("#price").value = item.price;
+
+      await itemRef.delete();  // Remove original item
+    }
+
+    document.getElementById("addItemForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const barcode = document.querySelector("#barcode").value;
+      const name = document.querySelector("#name").value;
+      const quantity = document.querySelector("#quantity").value;
+      const price = document.querySelector("#price").value;
+
+      const userId = auth.currentUser.uid;
+
+      // Save item to Firestore
+      await db.collection('users').doc(userId).collection('inventory').add({
+        barcode,
+        name,
+        quantity,
+        price
+      });
+
+      renderInventory();  // Refresh the inventory view
+      e.target.reset();   // Clear the form
+    });
+
+    // Auth state listener
+    auth.onAuthStateChanged((user) => {
+      if (user) {
+        showWelcome();
+        renderInventory();
+      } else {
+        showAuth();
+      }
     });
   </script>
 </body>
