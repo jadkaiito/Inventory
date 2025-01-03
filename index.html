@@ -135,8 +135,7 @@
   </div>
 
   <!-- Scripts -->
-  <script src="js/quagga.js"></script>
-  <script src="js/camera.js"></script>
+  <script src="https://unpkg.com/quagga/dist/quagga.min.js"></script>
   <script>
     // Firebase Initialization
     const firebaseConfig = {
@@ -255,79 +254,116 @@
           target: document.querySelector('#video')
         },
         decoder: {
-          readers: ["code_128_reader", "ean_reader", "ean_8_reader", "upc_reader", "upc_e_reader"]
+          readers: ["code_128_reader", "ean_reader", "ean_8_reader", "upc_reader"]
         }
-      }, function(err) {
+      }, function (err) {
         if (err) {
-          console.log(err);
+          console.error('Error initializing scanner:', err);
           return;
         }
         Quagga.start();
       });
 
-      Quagga.onDetected(function(data) {
-        const barcode = data.codeResult.code;
+      Quagga.onDetected(function(result) {
+        const barcode = result.codeResult.code;
         document.getElementById("barcode").value = barcode;
-        document.getElementById("cameraModal").classList.remove("active");
+        console.log('Scanned barcode:', barcode);
+        document.getElementById("cameraModal").classList.remove("active"); // Close camera modal
       });
     }
 
-    // Inventory Logic
-    const tableBody = document.querySelector("#inventoryTable tbody");
-
-    async function renderInventory() {
-      const userId = auth.currentUser.uid;
-      const inventoryRef = db.collection('users').doc(userId).collection('inventory');
-
-      tableBody.innerHTML = "";  // Clear the table
-
-      const snapshot = await inventoryRef.get();
-      snapshot.forEach(doc => {
-        const item = doc.data();
-        const row = document.createElement("tr");
-        row.innerHTML = `
-          <td>${doc.id}</td>
-          <td>${item.codebar}</td>
-          <td>${item.name}</td>
-          <td>${item.quantity}</td>
-          <td>${item.price}</td>
-          <td><button onclick="deleteItem('${doc.id}')">Delete</button></td>
-        `;
-        tableBody.appendChild(row);
-      });
-    }
-
-    // Add Item to Inventory
-    document.getElementById("addItemForm").addEventListener("submit", async (e) => {
+    // Inventory Functions
+    document.getElementById("addItemForm").addEventListener("submit", function(e) {
       e.preventDefault();
+
       const barcode = document.getElementById("barcode").value;
       const name = document.getElementById("name").value;
       const quantity = document.getElementById("quantity").value;
       const price = document.getElementById("price").value;
 
-      if (!barcode || !name || !quantity || !price) {
-        alert("All fields are required.");
-        return;
-      }
-
-      const userId = auth.currentUser.uid;
-      const inventoryRef = db.collection('users').doc(userId).collection('inventory');
-      await inventoryRef.add({
-        codebar: barcode,
-        name: name,
-        quantity: quantity,
-        price: price
+      const itemRef = db.collection("inventory").doc();
+      itemRef.set({
+        barcode,
+        name,
+        quantity,
+        price
+      }).then(() => {
+        alert("Item added successfully!");
+        renderInventory();
+      }).catch((error) => {
+        alert("Error adding item: " + error.message);
       });
-
-      renderInventory(); // Re-render the inventory after adding an item
     });
 
-    async function deleteItem(itemId) {
-      const userId = auth.currentUser.uid;
-      const inventoryRef = db.collection('users').doc(userId).collection('inventory');
-      await inventoryRef.doc(itemId).delete();
-      renderInventory(); // Re-render the inventory after deleting an item
+    // Render Inventory
+    function renderInventory() {
+      db.collection("inventory").get().then(snapshot => {
+        const tableBody = document.querySelector("#inventoryTable tbody");
+        tableBody.innerHTML = "";
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          const row = document.createElement("tr");
+          row.innerHTML = `
+            <td>${doc.id}</td>
+            <td>${data.barcode}</td>
+            <td>${data.name}</td>
+            <td>${data.quantity}</td>
+            <td>${data.price}</td>
+            <td><button onclick="deleteItem('${doc.id}')">Delete</button></td>
+          `;
+          tableBody.appendChild(row);
+        });
+      });
     }
+
+    // Delete Item
+    function deleteItem(id) {
+      db.collection("inventory").doc(id).delete().then(() => {
+        alert("Item deleted.");
+        renderInventory();
+      }).catch((error) => {
+        alert("Error deleting item: " + error.message);
+      });
+    }
+
+    // Export Inventory
+    document.getElementById("exportBtn").addEventListener("click", () => {
+      db.collection("inventory").get().then(snapshot => {
+        const inventoryData = [];
+        snapshot.forEach(doc => {
+          inventoryData.push(doc.data());
+        });
+        const dataStr = JSON.stringify(inventoryData, null, 2);
+        const blob = new Blob([dataStr], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "inventory.json";
+        link.click();
+      });
+    });
+
+    // Import Inventory
+    document.getElementById("importBtn").addEventListener("change", (event) => {
+      const file = event.target.files[0];
+      if (file && file.type === "application/json") {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const inventoryData = JSON.parse(e.target.result);
+          inventoryData.forEach(item => {
+            db.collection("inventory").add(item);
+          });
+          alert("Inventory imported!");
+          renderInventory();
+        };
+        reader.readAsText(file);
+      } else {
+        alert("Please upload a valid JSON file.");
+      }
+    });
+
+    // Initialize
+    showAuth();
   </script>
 </body>
 </html>
