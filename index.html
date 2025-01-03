@@ -71,11 +71,6 @@
       border-radius: 10px;
       margin-bottom: 10px;
     }
-    select {
-      padding: 10px;
-      font-size: 16px;
-      margin: 10px 0;
-    }
   </style>
 </head>
 <body>
@@ -134,10 +129,6 @@
   <div id="cameraModal">
     <div id="cameraContent">
       <h3>Barcode Scanner</h3>
-      <!-- Camera Device Selection Dropdown -->
-      <select id="cameraSelect"></select>
-
-      <!-- Video Element for Camera Feed -->
       <video id="video" autoplay></video>
       <button id="closeModal">Close Scanner</button>
     </div>
@@ -214,46 +205,43 @@
     // Camera Modal
     document.getElementById("startScanner").addEventListener("click", () => {
       document.getElementById("cameraModal").classList.add("active");
-      loadCameraDevices();
+      startCamera();
     });
     document.getElementById("closeModal").addEventListener("click", () => {
       document.getElementById("cameraModal").classList.remove("active");
     });
 
-    // Load Camera Devices into Dropdown
-    async function loadCameraDevices() {
-      const cameraSelect = document.getElementById('cameraSelect');
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      devices.forEach(device => {
-        if (device.kind === 'videoinput') {
-          const option = document.createElement('option');
-          option.value = device.deviceId;
-          option.textContent = device.label || `Camera ${cameraSelect.length + 1}`;
-          cameraSelect.appendChild(option);
+    // Start Camera with back camera
+    function startCamera() {
+      navigator.mediaDevices.enumerateDevices().then(devices => {
+        let backCamera = null;
+
+        // Find the back camera by checking for video input
+        for (let device of devices) {
+          if (device.kind === 'videoinput' && device.label.toLowerCase().includes('back')) {
+            backCamera = device.deviceId;
+            break;
+          }
+        }
+
+        if (!backCamera) {
+          // If no back camera found, fall back to the first video input (usually back camera)
+          backCamera = devices.find(device => device.kind === 'videoinput')?.deviceId;
+        }
+
+        // Set up the camera with the found back camera
+        if (backCamera) {
+          const constraints = {
+            video: { deviceId: backCamera }
+          };
+          navigator.mediaDevices.getUserMedia(constraints).then(stream => {
+            const videoElement = document.getElementById('video');
+            videoElement.srcObject = stream;
+          }).catch(error => {
+            console.error('Error accessing camera:', error);
+          });
         }
       });
-      // Set default camera
-      if (cameraSelect.options.length > 0) {
-        cameraSelect.selectedIndex = 0;
-        startCamera(cameraSelect.value);
-      }
-    }
-
-    // Start Camera
-    function startCamera(deviceId) {
-      const video = document.getElementById("video");
-      const constraints = {
-        video: {
-          deviceId: { exact: deviceId }
-        }
-      };
-      navigator.mediaDevices.getUserMedia(constraints)
-        .then((stream) => {
-          video.srcObject = stream;
-        })
-        .catch((err) => {
-          console.error("Error accessing camera: ", err);
-        });
     }
 
     // Inventory Logic
@@ -268,61 +256,16 @@
       const snapshot = await inventoryRef.get();
       snapshot.forEach(doc => {
         const item = doc.data();
-        const row = `<tr>
+        const row = <tr>
           <td>${doc.id}</td>
-          <td>${item.barcode}</td>
+          <td>${item.codebar}</td>
           <td>${item.name}</td>
           <td>${item.quantity}</td>
           <td>${item.price}</td>
-          <td>
-            <button onclick="editItem('${doc.id}')">Edit</button>
-            <button onclick="deleteItem('${doc.id}')">Delete</button>
-          </td>
-        </tr>`;
-        tableBody.innerHTML += row;
+          <td><button onclick="deleteItem('${doc.id}')">Delete</button></td>
+        </tr>;
+        tableBody.appendChild(row);
       });
-    }
-
-    async function deleteItem(itemId) {
-      const userId = auth.currentUser.uid;
-      await db.collection('users').doc(userId).collection('inventory').doc(itemId).delete();
-      renderInventory();
-    }
-
-    async function editItem(itemId) {
-      const userId = auth.currentUser.uid;
-      const itemRef = db.collection('users').doc(userId).collection('inventory').doc(itemId);
-      const itemDoc = await itemRef.get();
-      const item = itemDoc.data();
-
-      document.getElementById('barcode').value = item.barcode;
-      document.getElementById('name').value = item.name;
-      document.getElementById('quantity').value = item.quantity;
-      document.getElementById('price').value = item.price;
-    }
-
-    document.getElementById("addItemForm").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const barcode = document.getElementById("barcode").value;
-      const name = document.getElementById("name").value;
-      const quantity = document.getElementById("quantity").value;
-      const price = document.getElementById("price").value;
-
-      const userId = auth.currentUser.uid;
-      const inventoryRef = db.collection('users').doc(userId).collection('inventory');
-
-      await inventoryRef.add({ barcode, name, quantity, price });
-
-      renderInventory();
-      document.getElementById("addItemForm").reset();
-    });
-
-    // Initialize Inventory
-    if (auth.currentUser) {
-      showWelcome();
-      renderInventory();
-    } else {
-      showAuth();
     }
   </script>
 </body>
