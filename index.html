@@ -232,6 +232,28 @@
           cameraSelect.appendChild(option);
         }
       });
+      // Set default camera
+      if (cameraSelect.options.length > 0) {
+        cameraSelect.selectedIndex = 0;
+        startCamera(cameraSelect.value);
+      }
+    }
+
+    // Start Camera
+    function startCamera(deviceId) {
+      const video = document.getElementById("video");
+      const constraints = {
+        video: {
+          deviceId: { exact: deviceId }
+        }
+      };
+      navigator.mediaDevices.getUserMedia(constraints)
+        .then((stream) => {
+          video.srcObject = stream;
+        })
+        .catch((err) => {
+          console.error("Error accessing camera: ", err);
+        });
     }
 
     // Inventory Logic
@@ -253,15 +275,15 @@
           <td>${item.quantity}</td>
           <td>${item.price}</td>
           <td>
-            <button onclick="removeItem('${doc.id}')">Remove</button>
             <button onclick="editItem('${doc.id}')">Edit</button>
+            <button onclick="deleteItem('${doc.id}')">Delete</button>
           </td>
         </tr>`;
         tableBody.innerHTML += row;
       });
     }
 
-    async function removeItem(itemId) {
+    async function deleteItem(itemId) {
       const userId = auth.currentUser.uid;
       await db.collection('users').doc(userId).collection('inventory').doc(itemId).delete();
       renderInventory();
@@ -302,7 +324,6 @@
     } else {
       showAuth();
     }
-
   </script>
 </body>
 </html>
