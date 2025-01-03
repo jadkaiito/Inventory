@@ -20,6 +20,9 @@ const CameraScanner = (() => {
   const videoElement = document.getElementById("video");
   const closeModalButton = document.getElementById("closeModal");
   const scanSound = new Audio("scan_sound.mp3"); // Replace with your sound file path
+  let availableCameras = [];
+  const cameraSelect = document.createElement("select");
+  cameraSelect.id = "cameraSelect";
 
   /**
    * Stop the camera stream if active.
@@ -45,34 +48,56 @@ const CameraScanner = (() => {
       return;
     }
 
-    // Check for available devices and request camera access
-    navigator.mediaDevices
-      .enumerateDevices()
-      .then((devices) => {
-        const videoDevices = devices.filter((device) => device.kind === "videoinput");
-        if (!videoDevices.length) {
-          throw new Error("No video devices found.");
-        }
+    // Populate camera dropdown
+    listCameras().then(() => {
+      modal.insertBefore(cameraSelect, videoElement);
+      startCamera(availableCameras[0].deviceId); // Start with the first camera
+    });
+  };
 
-        const facingMode = videoDevices.length > 1 ? "environment" : "user";
-        return navigator.mediaDevices.getUserMedia({ video: { facingMode } });
-      })
-      .then((cameraStream) => {
-        console.log("Camera stream obtained");
-        stream = cameraStream;
-        videoElement.srcObject = stream;
+  /**
+   * Populate the camera dropdown with available video devices.
+   */
+  const listCameras = async () => {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    availableCameras = devices.filter((device) => device.kind === "videoinput");
 
-        return videoElement.play();
-      })
-      .then(() => {
-        console.log("Video playback started");
-        initScanner();
-      })
-      .catch((err) => {
-        console.error("Error in showModal:", err);
-        alert("Camera error: " + err.message);
-        hideModal();
+    cameraSelect.innerHTML = ""; // Clear existing options
+    availableCameras.forEach((device, index) => {
+      const option = document.createElement("option");
+      option.value = device.deviceId;
+      option.textContent = device.label || `Camera ${index + 1}`;
+      cameraSelect.appendChild(option);
+    });
+
+    // Handle camera selection change
+    cameraSelect.addEventListener("change", (e) => {
+      const selectedDeviceId = e.target.value;
+      startCamera(selectedDeviceId);
+    });
+  };
+
+  /**
+   * Start the selected camera.
+   */
+  const startCamera = async (deviceId) => {
+    stopStream(); // Stop any existing stream
+
+    try {
+      const cameraStream = await navigator.mediaDevices.getUserMedia({
+        video: { deviceId: { exact: deviceId } },
       });
+      console.log("Camera stream obtained");
+      stream = cameraStream;
+      videoElement.srcObject = stream;
+      await videoElement.play();
+      console.log("Video playback started");
+      initScanner();
+    } catch (err) {
+      console.error("Error starting camera:", err);
+      alert("Camera error: " + err.message);
+      hideModal();
+    }
   };
 
   /**
