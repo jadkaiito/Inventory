@@ -237,10 +237,37 @@
           navigator.mediaDevices.getUserMedia(constraints).then(stream => {
             const videoElement = document.getElementById('video');
             videoElement.srcObject = stream;
+            startBarcodeScan();
           }).catch(error => {
             console.error('Error accessing camera:', error);
           });
         }
+      });
+    }
+
+    // Barcode Scanning
+    function startBarcodeScan() {
+      Quagga.init({
+        inputStream: {
+          name: "Live",
+          type: "LiveStream",
+          target: document.querySelector('#video')
+        },
+        decoder: {
+          readers: ["code_128_reader", "ean_reader", "ean_8_reader", "upc_reader", "upc_e_reader"]
+        }
+      }, function(err) {
+        if (err) {
+          console.log(err);
+          return;
+        }
+        Quagga.start();
+      });
+
+      Quagga.onDetected(function(data) {
+        const barcode = data.codeResult.code;
+        document.getElementById("barcode").value = barcode;
+        document.getElementById("cameraModal").classList.remove("active");
       });
     }
 
