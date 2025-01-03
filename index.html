@@ -142,7 +142,7 @@
       apiKey: "AIzaSyBp4FWfR8GLz6zdvitnSJUTp9l4ALTorK8",
       authDomain: "anoti-10cf5.firebaseapp.com",
       projectId: "anoti-10cf5",
-      storageBucket: "anoti-10cf5.firebaseapp.com",
+      storageBucket: "anoti-10cf5.appspot.com",
       messagingSenderId: "72026208202",
       appId: "1:72026208202:web:3e4c88f784e8a8d4bb8133"
     };
@@ -192,6 +192,20 @@
     });
 
     document.getElementById("closeModal").addEventListener("click", closeScanner);
+
+    // Show the welcome section after login
+    function showWelcome() {
+      authContainer.classList.add("hidden");
+      welcomeContainer.classList.remove("hidden");
+      inventorySection.classList.remove("hidden");
+    }
+
+    // Show the auth section when the user is not logged in
+    function showAuth() {
+      authContainer.classList.remove("hidden");
+      welcomeContainer.classList.add("hidden");
+      inventorySection.classList.add("hidden");
+    }
 
     // Authentication Logic (unchanged from original)
     const authContainer = document.getElementById("auth");
