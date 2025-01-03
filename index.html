@@ -222,7 +222,7 @@
       const snapshot = await inventoryRef.get();
       snapshot.forEach(doc => {
         const item = doc.data();
-        const row = <tr>
+        const row = `<tr>
           <td>${doc.id}</td>
           <td>${item.barcode}</td>
           <td>${item.name}</td>
@@ -232,7 +232,7 @@
             <button onclick="removeItem('${doc.id}')">Remove</button>
             <button onclick="editItem('${doc.id}')">Edit</button>
           </td>
-        </tr>;
+        </tr>`;
         tableBody.innerHTML += row;
       });
     }
