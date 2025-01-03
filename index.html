@@ -286,7 +286,6 @@
         const item = doc.data();
         const row = document.createElement("tr");
         row.innerHTML = `
-
           <td>${doc.id}</td>
           <td>${item.codebar}</td>
           <td>${item.name}</td>
@@ -296,6 +295,38 @@
         `;
         tableBody.appendChild(row);
       });
+    }
+
+    // Add Item to Inventory
+    document.getElementById("addItemForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const barcode = document.getElementById("barcode").value;
+      const name = document.getElementById("name").value;
+      const quantity = document.getElementById("quantity").value;
+      const price = document.getElementById("price").value;
+
+      if (!barcode || !name || !quantity || !price) {
+        alert("All fields are required.");
+        return;
+      }
+
+      const userId = auth.currentUser.uid;
+      const inventoryRef = db.collection('users').doc(userId).collection('inventory');
+      await inventoryRef.add({
+        codebar: barcode,
+        name: name,
+        quantity: quantity,
+        price: price
+      });
+
+      renderInventory(); // Re-render the inventory after adding an item
+    });
+
+    async function deleteItem(itemId) {
+      const userId = auth.currentUser.uid;
+      const inventoryRef = db.collection('users').doc(userId).collection('inventory');
+      await inventoryRef.doc(itemId).delete();
+      renderInventory(); // Re-render the inventory after deleting an item
     }
   </script>
 </body>
