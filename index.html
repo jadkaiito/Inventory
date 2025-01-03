@@ -256,14 +256,15 @@
       const snapshot = await inventoryRef.get();
       snapshot.forEach(doc => {
         const item = doc.data();
-        const row = <tr>
+        const row = document.createElement("tr");
+        row.innerHTML = `
           <td>${doc.id}</td>
           <td>${item.codebar}</td>
           <td>${item.name}</td>
           <td>${item.quantity}</td>
           <td>${item.price}</td>
           <td><button onclick="deleteItem('${doc.id}')">Delete</button></td>
-        </tr>;
+        `;
         tableBody.appendChild(row);
       });
     }
