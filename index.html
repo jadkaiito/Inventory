@@ -71,6 +71,11 @@
       border-radius: 10px;
       margin-bottom: 10px;
     }
+    select {
+      padding: 10px;
+      font-size: 16px;
+      margin: 10px 0;
+    }
   </style>
 </head>
 <body>
@@ -129,6 +134,10 @@
   <div id="cameraModal">
     <div id="cameraContent">
       <h3>Barcode Scanner</h3>
+      <!-- Camera Device Selection Dropdown -->
+      <select id="cameraSelect"></select>
+
+      <!-- Video Element for Camera Feed -->
       <video id="video" autoplay></video>
       <button id="closeModal">Close Scanner</button>
     </div>
@@ -205,10 +214,25 @@
     // Camera Modal
     document.getElementById("startScanner").addEventListener("click", () => {
       document.getElementById("cameraModal").classList.add("active");
+      loadCameraDevices();
     });
     document.getElementById("closeModal").addEventListener("click", () => {
       document.getElementById("cameraModal").classList.remove("active");
     });
+
+    // Load Camera Devices into Dropdown
+    async function loadCameraDevices() {
+      const cameraSelect = document.getElementById('cameraSelect');
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      devices.forEach(device => {
+        if (device.kind === 'videoinput') {
+          const option = document.createElement('option');
+          option.value = device.deviceId;
+          option.textContent = device.label || `Camera ${cameraSelect.length + 1}`;
+          cameraSelect.appendChild(option);
+        }
+      });
+    }
 
     // Inventory Logic
     const tableBody = document.querySelector("#inventoryTable tbody");
@@ -240,53 +264,45 @@
     async function removeItem(itemId) {
       const userId = auth.currentUser.uid;
       await db.collection('users').doc(userId).collection('inventory').doc(itemId).delete();
-      renderInventory();  // Refresh the inventory view
+      renderInventory();
     }
 
     async function editItem(itemId) {
       const userId = auth.currentUser.uid;
       const itemRef = db.collection('users').doc(userId).collection('inventory').doc(itemId);
-      const doc = await itemRef.get();
-      const item = doc.data();
+      const itemDoc = await itemRef.get();
+      const item = itemDoc.data();
 
-      document.querySelector("#barcode").value = item.barcode;
-      document.querySelector("#name").value = item.name;
-      document.querySelector("#quantity").value = item.quantity;
-      document.querySelector("#price").value = item.price;
-
-      await itemRef.delete();  // Remove original item
+      document.getElementById('barcode').value = item.barcode;
+      document.getElementById('name').value = item.name;
+      document.getElementById('quantity').value = item.quantity;
+      document.getElementById('price').value = item.price;
     }
 
     document.getElementById("addItemForm").addEventListener("submit", async (e) => {
       e.preventDefault();
-      const barcode = document.querySelector("#barcode").value;
-      const name = document.querySelector("#name").value;
-      const quantity = document.querySelector("#quantity").value;
-      const price = document.querySelector("#price").value;
+      const barcode = document.getElementById("barcode").value;
+      const name = document.getElementById("name").value;
+      const quantity = document.getElementById("quantity").value;
+      const price = document.getElementById("price").value;
 
       const userId = auth.currentUser.uid;
+      const inventoryRef = db.collection('users').doc(userId).collection('inventory');
 
-      // Save item to Firestore
-      await db.collection('users').doc(userId).collection('inventory').add({
-        barcode,
-        name,
-        quantity,
-        price
-      });
+      await inventoryRef.add({ barcode, name, quantity, price });
 
-      renderInventory();  // Refresh the inventory view
-      e.target.reset();   // Clear the form
+      renderInventory();
+      document.getElementById("addItemForm").reset();
     });
 
-    // Auth state listener
-    auth.onAuthStateChanged((user) => {
-      if (user) {
-        showWelcome();
-        renderInventory();
-      } else {
-        showAuth();
-      }
-    });
+    // Initialize Inventory
+    if (auth.currentUser) {
+      showWelcome();
+      renderInventory();
+    } else {
+      showAuth();
+    }
+
   </script>
 </body>
 </html>
