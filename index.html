@@ -9,7 +9,6 @@
   <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-firestore-compat.js"></script>
   <style>
-    /* Styles remain unchanged */
     body {
       font-family: Arial, sans-serif;
       background-color: #1e1e1e;
@@ -136,7 +135,8 @@
   </div>
 
   <!-- Scripts -->
-  <script src="https://unpkg.com/quagga/dist/quagga.min.js"></script>
+  <script src="js/quagga.js"></script>
+  <script src="js/camera.js"></script>
   <script>
     // Firebase Initialization
     const firebaseConfig = {
@@ -152,62 +152,182 @@
     const db = firebase.firestore();
 
     // Authentication Logic
-    // ... Code remains the same for authentication logic ...
+    const authContainer = document.getElementById("auth");
+    const welcomeContainer = document.getElementById("welcome");
+    const inventorySection = document.getElementById("inventorySection");
 
-    // Camera Modal Logic
+    const emailInput = document.getElementById("email");
+    const passwordInput = document.getElementById("password");
+    const authAction = document.getElementById("authAction");
+    const logoutButton = document.getElementById("logout");
+    let isLoginMode = true;
+
+    document.getElementById("switchToRegister").addEventListener("click", (e) => {
+      e.preventDefault();
+      isLoginMode = !isLoginMode;
+      authAction.textContent = isLoginMode ? "Login" : "Register";
+    });
+
+    authAction.addEventListener("click", async () => {
+      const email = emailInput.value;
+      const password = passwordInput.value;
+      try {
+        if (isLoginMode) {
+          await auth.signInWithEmailAndPassword(email, password);
+        } else {
+          await auth.createUserWithEmailAndPassword(email, password);
+          isLoginMode = true;
+          alert("Account created. Please log in.");
+        }
+        showWelcome();
+      } catch (error) {
+        alert(error.message);
+      }
+    });
+
+    logoutButton.addEventListener("click", async () => {
+      await auth.signOut();
+      showAuth();
+    });
+
+    function showAuth() {
+      authContainer.classList.remove("hidden");
+      welcomeContainer.classList.add("hidden");
+      inventorySection.classList.add("hidden");
+    }
+
+    function showWelcome() {
+      authContainer.classList.add("hidden");
+      welcomeContainer.classList.remove("hidden");
+      inventorySection.classList.remove("hidden");
+      renderInventory(); // Render inventory after login
+    }
+
+    // Camera Modal
     document.getElementById("startScanner").addEventListener("click", () => {
       document.getElementById("cameraModal").classList.add("active");
       startCamera();
     });
     document.getElementById("closeModal").addEventListener("click", () => {
       document.getElementById("cameraModal").classList.remove("active");
-      Quagga.stop();
     });
 
+    // Start Camera with back camera
     function startCamera() {
-      navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
-        const videoElement = document.getElementById("video");
-        videoElement.srcObject = stream;
-        startBarcodeScan();
-      }).catch(error => {
-        console.error("Error accessing camera:", error);
+      navigator.mediaDevices.enumerateDevices().then(devices => {
+        let backCamera = null;
+
+        // Find the back camera by checking for video input
+        for (let device of devices) {
+          if (device.kind === 'videoinput' && device.label.toLowerCase().includes('back')) {
+            backCamera = device.deviceId;
+            break;
+          }
+        }
+
+        if (!backCamera) {
+          // If no back camera found, fall back to the first video input (usually back camera)
+          backCamera = devices.find(device => device.kind === 'videoinput')?.deviceId;
+        }
+
+        // Set up the camera with the found back camera
+        if (backCamera) {
+          const constraints = {
+            video: { deviceId: backCamera }
+          };
+          navigator.mediaDevices.getUserMedia(constraints).then(stream => {
+            const videoElement = document.getElementById('video');
+            videoElement.srcObject = stream;
+            startBarcodeScan();
+          }).catch(error => {
+            console.error('Error accessing camera:', error);
+          });
+        }
       });
     }
 
+    // Barcode Scanning
     function startBarcodeScan() {
       Quagga.init({
         inputStream: {
           name: "Live",
           type: "LiveStream",
-          target: document.querySelector("#video")
+          target: document.querySelector('#video')
         },
         decoder: {
-          readers: ["code_128_reader", "ean_reader", "ean_8_reader", "upc_reader"]
+          readers: ["code_128_reader", "ean_reader", "ean_8_reader", "upc_reader", "upc_e_reader"]
         }
       }, function(err) {
         if (err) {
-          console.error("Error initializing scanner:", err);
+          console.log(err);
           return;
         }
         Quagga.start();
       });
 
-      Quagga.onDetected(result => {
-        if (result.codeResult && result.codeResult.code) {
-          const barcode = result.codeResult.code;
-          document.getElementById("barcode").value = barcode;
-          console.log("Scanned barcode:", barcode);
-          document.getElementById("cameraModal").classList.remove("active");
-          Quagga.stop();
-        }
+      Quagga.onDetected(function(data) {
+        const barcode = data.codeResult.code;
+        document.getElementById("barcode").value = barcode;
+        document.getElementById("cameraModal").classList.remove("active");
       });
     }
 
-    // Inventory Functions
-    // ... Code remains the same for inventory functions ...
+    // Inventory Logic
+    const tableBody = document.querySelector("#inventoryTable tbody");
 
-    // Initialize
-    showAuth();
+    async function renderInventory() {
+      const userId = auth.currentUser.uid;
+      const inventoryRef = db.collection('users').doc(userId).collection('inventory');
+
+      tableBody.innerHTML = "";  // Clear the table
+
+      const snapshot = await inventoryRef.get();
+      snapshot.forEach(doc => {
+        const item = doc.data();
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${doc.id}</td>
+          <td>${item.codebar}</td>
+          <td>${item.name}</td>
+          <td>${item.quantity}</td>
+          <td>${item.price}</td>
+          <td><button onclick="deleteItem('${doc.id}')">Delete</button></td>
+        `;
+        tableBody.appendChild(row);
+      });
+    }
+
+    // Add Item to Inventory
+    document.getElementById("addItemForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const barcode = document.getElementById("barcode").value;
+      const name = document.getElementById("name").value;
+      const quantity = document.getElementById("quantity").value;
+      const price = document.getElementById("price").value;
+
+      if (!barcode || !name || !quantity || !price) {
+        alert("All fields are required.");
+        return;
+      }
+
+      const userId = auth.currentUser.uid;
+      const inventoryRef = db.collection('users').doc(userId).collection('inventory');
+      await inventoryRef.add({
+        codebar: barcode,
+        name: name,
+        quantity: quantity,
+        price: price
+      });
+
+      renderInventory(); // Re-render the inventory after adding an item
+    });
+
+    async function deleteItem(itemId) {
+      const userId = auth.currentUser.uid;
+      const inventoryRef = db.collection('users').doc(userId).collection('inventory');
+      await inventoryRef.doc(itemId).delete();
+      renderInventory(); // Re-render the inventory after deleting an item
+    }
   </script>
 </body>
 </html>
